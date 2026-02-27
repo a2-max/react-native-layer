@@ -33,17 +33,20 @@ export default function App() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <Text style={styles.title}>react-native-layer</Text>
-        <Text style={styles.subtitle}>Lightweight overlay primitives developed by Yatri Motorcycles</Text>
+        <Text style={styles.subtitle}>
+          Lightweight overlay primitives developed by Yatri Motorcycles
+        </Text>
 
-        <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="always">
+        <ScrollView
+          style={styles.scroll}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="always"
+        >
           <View style={styles.buttons}>
             {/* ── Sheets ── */}
             <Text style={styles.sectionLabel}>Bottom Sheets</Text>
 
-            <Pressable
-              style={styles.btn}
-              onPress={() => setSheetVisible(true)}
-            >
+            <Pressable style={styles.btn} onPress={() => setSheetVisible(true)}>
               <Text style={styles.btnText}>Bottom Sheet</Text>
             </Pressable>
 
@@ -71,10 +74,7 @@ export default function App() {
               <Text style={styles.btnText}>Confirm Modal</Text>
             </Pressable>
 
-            <Pressable
-              style={styles.btn}
-              onPress={() => setGuardVisible(true)}
-            >
+            <Pressable style={styles.btn} onPress={() => setGuardVisible(true)}>
               <Text style={styles.btnText}>Guarded Confirm</Text>
             </Pressable>
 
@@ -102,9 +102,11 @@ export default function App() {
             <Pressable
               style={styles.btn}
               onPress={() => {
-                showToast({ message: 'This is a bottom toast', position: 'bottom' })
-              }
-              }
+                showToast({
+                  message: 'This is a bottom toast',
+                  position: 'bottom',
+                });
+              }}
             >
               <Text style={styles.btnText}>Bottom Toast</Text>
             </Pressable>
@@ -206,7 +208,9 @@ export default function App() {
           }}
           onOpen={() => setDragInfo('Opened — drag handle up ↑')}
           onDrag={(direction: DragDirection, fraction: number) =>
-            setDragInfo(`Dragging ${direction} · ${Math.round(fraction * 100)}%`)
+            setDragInfo(
+              `Dragging ${direction} · ${Math.round(fraction * 100)}%`
+            )
           }
           onFullScreen={() => setDragInfo('Full screen!')}
           backgroundColor="#1E1B4B"
@@ -273,7 +277,7 @@ export default function App() {
           title="Update Available"
           message="A new version of the app is available. Please update to continue."
           buttonText="OK"
-          type='success'
+          type="success"
           position="center"
           onClose={() => setCenterAlertVisible(false)}
         />
@@ -285,7 +289,7 @@ export default function App() {
           message="You are offline. Please check your internet connection and try again."
           buttonText="Dismiss"
           position="bottom"
-          type='error'
+          type="error"
           onClose={() => setBottomAlertVisible(false)}
         />
       </KeyboardAvoidingView>

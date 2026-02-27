@@ -1,11 +1,5 @@
 import { StyleSheet } from 'react-native';
-import {
-  Colors,
-  Font,
-  Layout,
-  Opacity,
-  SCREEN_HEIGHT,
-} from './constants';
+import { Colors, Font, Layout, Opacity, SCREEN_HEIGHT } from './constants';
 
 // ─── Shared / Common ─────────────────────────────────────────────────────────
 
@@ -156,13 +150,13 @@ export const alertStyles = StyleSheet.create({
   title: {
     fontSize: Font.sizeTitle,
     fontWeight: Font.weightSemiBold,
-    textAlign: 'center'
+    textAlign: 'center',
   },
   message: {
     fontSize: Font.sizeMessage,
     marginTop: 8,
     lineHeight: 20,
-    textAlign: 'center'
+    textAlign: 'center',
   },
   button: {
     marginTop: 20,

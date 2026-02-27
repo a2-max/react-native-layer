@@ -3,10 +3,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 export { SafeAreaProvider as SafeAreaInsetsProvider } from 'react-native-safe-area-context';
 
 interface Insets {
-    top: number;
-    bottom: number;
-    left: number;
-    right: number;
+  top: number;
+  bottom: number;
+  left: number;
+  right: number;
 }
 
 /**
@@ -14,7 +14,7 @@ interface Insets {
  * Must be rendered inside a `<SafeAreaProvider>`.
  */
 export function useInsets(): Insets {
-    return useSafeAreaInsets();
+  return useSafeAreaInsets();
 }
 
 export type { Insets };
