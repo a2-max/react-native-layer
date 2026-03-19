@@ -1,0 +1,3 @@
+import type { ConfirmModalProps } from '../types/confirmModal';
+export declare const ConfirmModal: ({ visible, title, message, showInput, inputLabel, inputPlaceholder, validationText, positiveText, negativeText, onConfirm, onCancel, onOpen, disableBackdropClose, animationDuration, backdropColor, cardBackgroundColor, titleColor, messageColor, positiveButtonColor, positiveTextColor, negativeButtonColor, negativeTextColor, backdropStyle, cardStyle, titleStyle, messageStyle, labelStyle, inputStyle, buttonsContainerStyle, positiveStyle, negativeStyle, positiveButtonStyle, negativeButtonStyle, }: ConfirmModalProps) => import("react/jsx-runtime").JSX.Element;
+//# sourceMappingURL=ConfirmModal.d.ts.map

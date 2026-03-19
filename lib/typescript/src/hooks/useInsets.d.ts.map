@@ -1,0 +1,1 @@
+{"version":3,"file":"useInsets.d.ts","sourceRoot":"","sources":["../../../../src/hooks/useInsets.ts"],"names":[],"mappings":"AAEA,OAAO,EAAE,gBAAgB,IAAI,sBAAsB,EAAE,MAAM,gCAAgC,CAAC;AAE5F,UAAU,MAAM;IACd,GAAG,EAAE,MAAM,CAAC;IACZ,MAAM,EAAE,MAAM,CAAC;IACf,IAAI,EAAE,MAAM,CAAC;IACb,KAAK,EAAE,MAAM,CAAC;CACf;AAED;;;GAGG;AACH,wBAAgB,SAAS,IAAI,MAAM,CAElC;AAED,YAAY,EAAE,MAAM,EAAE,CAAC"}
