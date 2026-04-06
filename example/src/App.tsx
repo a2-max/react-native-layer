@@ -217,6 +217,7 @@ export default function App() {
           handleColor="#A78BFA"
           backdropOpacity={0.7}
           contentContainerStyle={{ paddingHorizontal: 20 }}
+          enableUpwardDrag
         >
           <Text style={[styles.sheetTitle, { color: '#E0E7FF' }]}>
             Themed Sheet

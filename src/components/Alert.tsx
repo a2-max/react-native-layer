@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Animated,
   BackHandler,
   Modal,
   Pressable,
@@ -8,6 +7,13 @@ import {
   Text,
   View,
 } from 'react-native';
+import Animated, {
+  Easing,
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { Animation, Colors } from '../core/constants';
 import { alertStyles as styles, commonStyles } from '../core/styles';
 import type { AlertProps, AlertType } from '../types/alert';
@@ -100,9 +106,12 @@ const AlertInner = ({
   onModalHide,
 }: AlertProps & { onModalHide: () => void }) => {
   const insets = useInsets();
-  const opacity = useRef(new Animated.Value(0)).current;
-  const scale = useRef(new Animated.Value(Animation.scaleInitial)).current;
-  const translateY = useRef(new Animated.Value(200)).current;
+  const opacity = useSharedValue(0);
+  const scale = useSharedValue<number>(Animation.scaleInitial);
+  const translateY = useSharedValue(200);
+  const onOpenRef = useRef(onOpen);
+
+  onOpenRef.current = onOpen;
 
   const resolvedButtonColor =
     buttonColor ?? (type ? TYPE_COLORS[type].button : Colors.gray900);
@@ -113,64 +122,75 @@ const AlertInner = ({
   useEffect(() => {
     if (visible) {
       if (position === 'center') {
-        Animated.parallel([
-          Animated.timing(opacity, {
-            toValue: 1,
-            duration: animationDuration,
-            useNativeDriver: true,
-          }),
-          Animated.spring(scale, {
-            toValue: 1,
-            useNativeDriver: true,
-            bounciness: Animation.bounciness,
-          }),
-        ]).start(({ finished }) => {
-          if (finished) onOpen?.();
+        opacity.value = 0;
+        scale.value = Animation.scaleInitial;
+        opacity.value = withTiming(
+          1,
+          { duration: animationDuration },
+          (finished) => {
+            if (finished && onOpenRef.current) {
+              runOnJS(onOpenRef.current)();
+            }
+          }
+        );
+        scale.value = withTiming(1, {
+          duration: animationDuration,
+          easing: Easing.out(Easing.cubic),
         });
       } else {
-        Animated.parallel([
-          Animated.timing(opacity, {
-            toValue: 1,
-            duration: animationDuration,
-            useNativeDriver: true,
-          }),
-          Animated.timing(translateY, {
-            toValue: 0,
-            duration: animationDuration,
-            useNativeDriver: true,
-          }),
-        ]).start(({ finished }) => {
-          if (finished) onOpen?.();
+        opacity.value = 0;
+        translateY.value = 200;
+        opacity.value = withTiming(
+          1,
+          { duration: animationDuration },
+          (finished) => {
+            if (finished && onOpenRef.current) {
+              runOnJS(onOpenRef.current)();
+            }
+          }
+        );
+        translateY.value = withTiming(0, {
+          duration: animationDuration,
+          easing: Easing.out(Easing.cubic),
         });
       }
     } else if (position === 'center') {
-      Animated.timing(opacity, {
-        toValue: 0,
-        duration: animationDuration,
-        useNativeDriver: true,
-      }).start(({ finished }) => {
-        if (finished) {
-          scale.setValue(Animation.scaleInitial);
-          onModalHide();
+      opacity.value = withTiming(
+        0,
+        { duration: animationDuration },
+        (finished) => {
+          if (finished) {
+            runOnJS(onModalHide)();
+          }
         }
+      );
+      scale.value = withTiming(Animation.scaleInitial, {
+        duration: animationDuration,
       });
     } else {
-      Animated.parallel([
-        Animated.timing(opacity, {
-          toValue: 0,
-          duration: animationDuration,
-          useNativeDriver: true,
-        }),
-        Animated.timing(translateY, {
-          toValue: 200,
-          duration: animationDuration,
-          useNativeDriver: true,
-        }),
-      ]).start(({ finished }) => {
-        if (finished) onModalHide();
+      opacity.value = withTiming(
+        0,
+        { duration: animationDuration },
+        (finished) => {
+          if (finished) {
+            runOnJS(onModalHide)();
+          }
+        }
+      );
+      translateY.value = withTiming(200, {
+        duration: animationDuration,
+        easing: Easing.in(Easing.cubic),
       });
     }
-  }, [visible, animationDuration, position]);
+  }, [
+    visible,
+    animationDuration,
+    position,
+    onModalHide,
+    opacity,
+    scale,
+    translateY,
+  ]);
 
   useEffect(() => {
     if (!visible) return;
@@ -181,13 +201,27 @@ const AlertInner = ({
     return () => sub.remove();
   }, [visible, onClose]);
 
+  const backdropAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+  }));
+
+  const centerCardAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ scale: scale.value }],
+  }));
+
+  const bottomCardAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+  }));
+
   if (position === 'center') {
     return (
       <View style={commonStyles.center}>
         <Animated.View
           style={[
             StyleSheet.absoluteFill,
-            { backgroundColor: backdropColor, opacity },
+            { backgroundColor: backdropColor },
+            backdropAnimatedStyle,
           ]}
         >
           <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
@@ -196,7 +230,8 @@ const AlertInner = ({
         <Animated.View
           style={[
             styles.centerCard,
-            { backgroundColor, opacity, transform: [{ scale }] },
+            { backgroundColor },
+            centerCardAnimatedStyle,
           ]}
         >
           {IconComponent ? (
@@ -240,7 +275,8 @@ const AlertInner = ({
       <Animated.View
         style={[
           StyleSheet.absoluteFill,
-          { backgroundColor: backdropColor, opacity },
+          { backgroundColor: backdropColor },
+          backdropAnimatedStyle,
         ]}
       >
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
@@ -253,8 +289,8 @@ const AlertInner = ({
             {
               backgroundColor,
               paddingBottom: insets.bottom + 20,
-              transform: [{ translateY }],
             },
+            bottomCardAnimatedStyle,
           ]}
         >
           {IconComponent ? (

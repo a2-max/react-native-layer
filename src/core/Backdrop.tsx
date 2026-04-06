@@ -1,14 +1,17 @@
 import {
-  Animated,
   Pressable,
   StyleSheet,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
+import Animated, {
+  type SharedValue,
+  useAnimatedStyle,
+} from 'react-native-reanimated';
 import { Colors } from './constants';
 
 interface Props {
-  opacity: Animated.AnimatedInterpolation<string | number>;
+  opacity: SharedValue<number>;
   onPress: () => void;
   color?: string;
   style?: StyleProp<ViewStyle>;
@@ -20,6 +23,10 @@ export const Backdrop = ({
   color = Colors.black,
   style,
 }: Props) => {
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+  }));
+
   return (
     <Animated.View
       pointerEvents="box-none"
@@ -27,7 +34,7 @@ export const Backdrop = ({
         StyleSheet.absoluteFill,
         { backgroundColor: color },
         style,
-        { opacity },
+        animatedStyle,
       ]}
     >
       <Pressable style={StyleSheet.absoluteFill} onPress={onPress} />

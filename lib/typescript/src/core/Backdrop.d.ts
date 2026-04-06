@@ -1,6 +1,7 @@
-import { Animated, type StyleProp, type ViewStyle } from 'react-native';
+import { type StyleProp, type ViewStyle } from 'react-native';
+import { type SharedValue } from 'react-native-reanimated';
 interface Props {
-    opacity: Animated.AnimatedInterpolation<string | number>;
+    opacity: SharedValue<number>;
     onPress: () => void;
     color?: string;
     style?: StyleProp<ViewStyle>;

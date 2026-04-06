@@ -13,6 +13,11 @@ export {
   SCREEN_HEIGHT,
 } from './core/constants';
 export { useInsets } from './hooks/useInsets';
+export {
+  useKeyboard,
+  closeKeyboard,
+  isKeyboardOpen,
+} from './hooks/useKeyboard';
 
 export type {
   LayerProps,

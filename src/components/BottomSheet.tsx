@@ -1,26 +1,30 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Animated,
   BackHandler,
-  Keyboard,
   type LayoutChangeEvent,
   Modal,
-  PanResponder,
   StyleSheet,
   View,
 } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, {
+  Easing,
+  Extrapolation,
+  interpolate,
+  runOnJS,
+  useAnimatedStyle,
+  useDerivedValue,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 
 import { Backdrop } from '../core/Backdrop';
 import { Animation, Colors, Layout } from '../core/constants';
 import { bottomSheetStyles as styles, commonStyles } from '../core/styles';
 import type { BottomSheetProps } from '../types/bottomSheet';
 import { SafeAreaInsetsProvider, useInsets } from '../hooks/useInsets';
+import { closeKeyboard } from '../hooks/useKeyboard';
 
-/**
- * Outer shell — only controls `<Modal>` visibility and wraps content
- * in `<SafeAreaInsetsProvider>` so `useInsets()` works inside the
- * detached native view hierarchy.
- */
 export const BottomSheet = (props: BottomSheetProps) => {
   const {
     visible,
@@ -31,7 +35,7 @@ export const BottomSheet = (props: BottomSheetProps) => {
 
   useEffect(() => {
     if (visible) {
-      Keyboard.dismiss();
+      closeKeyboard();
       setModalVisible(true);
     }
   }, [visible]);
@@ -59,10 +63,6 @@ export const BottomSheet = (props: BottomSheetProps) => {
   );
 };
 
-/**
- * Inner component — rendered inside the Modal + SafeAreaProvider,
- * so `useInsets()` returns real device insets.
- */
 const BottomSheetInner = ({
   children,
   visible,
@@ -72,6 +72,7 @@ const BottomSheetInner = ({
   onDragEnd,
   onFullScreen,
   draggable = true,
+  enableUpwardDrag = false,
   showHandle = true,
   topInset: topInsetProp,
   bottomInset: bottomInsetProp,
@@ -99,144 +100,181 @@ const BottomSheetInner = ({
   const maxHeight = containerHeight > 0 ? containerHeight - topInset : 0;
   const maxHeightForContent = maxHeight > 0 ? maxHeight : Infinity;
 
-  const animatedHeight = useRef(new Animated.Value(0)).current;
-  const dragStartHeight = useRef(0);
+  const animatedHeight = useSharedValue(0);
+  const dragStartHeight = useSharedValue(0);
+  const contentHeightValue = useSharedValue(0);
+  const maxHeightValue = useSharedValue(0);
+  const dismissThresholdValue = useSharedValue(dismissThreshold);
 
-  // ── Stable refs for PanResponder ────────────────────────
-  const contentHeightRef = useRef(0);
-  const maxHeightRef = useRef(0);
   const onCloseRef = useRef(onClose);
+  const onOpenRef = useRef(onOpen);
   const onDragRef = useRef(onDrag);
   const onDragEndRef = useRef(onDragEnd);
   const onFullScreenRef = useRef(onFullScreen);
-  const dismissThresholdRef = useRef(dismissThreshold);
 
   onCloseRef.current = onClose;
+  onOpenRef.current = onOpen;
   onDragRef.current = onDrag;
   onDragEndRef.current = onDragEnd;
   onFullScreenRef.current = onFullScreen;
-  dismissThresholdRef.current = dismissThreshold;
-  maxHeightRef.current = maxHeight;
 
-  // ── Measure the real modal container ────────────────────
+  useEffect(() => {
+    maxHeightValue.value = maxHeight;
+  }, [maxHeight, maxHeightValue]);
+
+  useEffect(() => {
+    dismissThresholdValue.value = dismissThreshold;
+  }, [dismissThreshold, dismissThresholdValue]);
+
+  const emitOpen = useCallback(() => {
+    onOpenRef.current?.();
+  }, []);
+
+  const emitDismiss = useCallback(() => {
+    onCloseRef.current();
+    onDragEndRef.current?.('dismissed');
+  }, []);
+
+  const emitFullscreen = useCallback(() => {
+    onFullScreenRef.current?.();
+    onDragEndRef.current?.('fullscreen');
+  }, []);
+
+  const emitContentSettled = useCallback(() => {
+    onDragEndRef.current?.('content');
+  }, []);
+
+  const emitDrag = useCallback((direction: 'up' | 'down', fraction: number) => {
+    onDragRef.current?.(direction, fraction);
+  }, []);
+
   const handleContainerLayout = useCallback((e: LayoutChangeEvent) => {
     setContainerHeight(e.nativeEvent.layout.height);
   }, []);
 
-  // ── Close animation ─────────────────────────────────────
   useEffect(() => {
     if (!visible) {
-      Animated.timing(animatedHeight, {
-        toValue: 0,
-        duration: animationDuration,
-        useNativeDriver: false,
-      }).start(({ finished }) => {
-        if (finished) onModalHide();
-      });
+      animatedHeight.value = withTiming(
+        0,
+        { duration: animationDuration },
+        (finished) => {
+          if (finished) {
+            runOnJS(onModalHide)();
+          }
+        }
+      );
     }
-  }, [visible, animationDuration]);
+  }, [visible, animationDuration, animatedHeight, onModalHide]);
 
-  // ── Animate open once measurements are ready ────────────
   useEffect(() => {
     if (visible && contentHeight > 0 && maxHeight > 0) {
       const target = Math.min(contentHeight, maxHeight);
-      Animated.timing(animatedHeight, {
-        toValue: target,
-        duration: animationDuration,
-        useNativeDriver: false,
-      }).start(({ finished }) => {
-        if (finished) onOpen?.();
-      });
+      animatedHeight.value = withTiming(
+        target,
+        { duration: animationDuration },
+        (finished) => {
+          if (finished && onOpenRef.current) {
+            runOnJS(emitOpen)();
+          }
+        }
+      );
     }
-  }, [visible, contentHeight, maxHeight, animationDuration]);
+  }, [
+    visible,
+    contentHeight,
+    maxHeight,
+    animationDuration,
+    animatedHeight,
+    emitOpen,
+  ]);
 
-  // ── Content measurement (hidden measurer) ───────────────
   const handleContentLayout = useCallback(
     (e: LayoutChangeEvent) => {
       const measured = Math.min(
         e.nativeEvent.layout.height + bottomInset,
         maxHeightForContent
       );
-      if (Math.abs(measured - contentHeightRef.current) < 1) return;
+      if (Math.abs(measured - contentHeightValue.value) < 1) return;
 
-      contentHeightRef.current = measured;
+      contentHeightValue.value = measured;
       setContentHeight(measured);
     },
-    [bottomInset, maxHeightForContent]
+    [bottomInset, contentHeightValue, maxHeightForContent]
   );
 
-  // ── PanResponder ────────────────────────────────────────
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_, g) =>
-        Math.abs(g.dy) > Layout.panThreshold,
-
-      onPanResponderGrant: () => {
-        // @ts-ignore – _value is internal but stable
-        dragStartHeight.current = (animatedHeight as any)._value;
-      },
-
-      onPanResponderMove: (_, gesture) => {
-        const full = maxHeightRef.current;
-        const newHeight = Math.max(
-          0,
-          Math.min(full, dragStartHeight.current - gesture.dy)
-        );
-        animatedHeight.setValue(newHeight);
-
-        const direction = gesture.dy < 0 ? 'up' : 'down';
-        onDragRef.current?.(direction, full > 0 ? newHeight / full : 0);
-      },
-
-      onPanResponderRelease: (_, gesture) => {
-        const full = maxHeightRef.current;
-        const cHeight = contentHeightRef.current;
-        // @ts-ignore
-        const current: number = (animatedHeight as any)._value;
-
-        if (gesture.dy > 0 && current < cHeight - dismissThresholdRef.current) {
-          Animated.timing(animatedHeight, {
-            toValue: 0,
-            duration: Animation.durationFast,
-            useNativeDriver: false,
-          }).start(() => {
-            onCloseRef.current();
-            onDragEndRef.current?.('dismissed');
-          });
-          return;
-        }
-
-        const midpoint = (cHeight + full) / 2;
-
-        if (current > midpoint) {
-          Animated.spring(animatedHeight, {
-            toValue: full,
-            useNativeDriver: false,
-            bounciness: Animation.bounciness,
-          }).start(() => {
-            onFullScreenRef.current?.();
-            onDragEndRef.current?.('fullscreen');
-          });
-        } else {
-          Animated.spring(animatedHeight, {
-            toValue: cHeight,
-            useNativeDriver: false,
-            bounciness: Animation.bounciness,
-          }).start(() => {
-            onDragEndRef.current?.('content');
-          });
-        }
-      },
+  const panGesture = Gesture.Pan()
+    .enabled(draggable)
+    .minDistance(Layout.panThreshold)
+    .onBegin(() => {
+      dragStartHeight.value = animatedHeight.value;
     })
-  ).current;
+    .onUpdate((gesture) => {
+      const full = maxHeightValue.value;
+      const upwardDelta = enableUpwardDrag
+        ? gesture.translationY
+        : Math.max(gesture.translationY, 0);
+      const nextHeight = Math.max(
+        0,
+        Math.min(full, dragStartHeight.value - upwardDelta)
+      );
 
-  // ── Backdrop press ──────────────────────────────────────
+      animatedHeight.value = nextHeight;
+
+      const direction = gesture.translationY < 0 ? 'up' : 'down';
+      if (direction === 'down' || enableUpwardDrag) {
+        runOnJS(emitDrag)(direction, full > 0 ? nextHeight / full : 0);
+      }
+    })
+    .onEnd((gesture) => {
+      const full = maxHeightValue.value;
+      const content = contentHeightValue.value;
+      const current = animatedHeight.value;
+
+      if (
+        gesture.translationY > 0 &&
+        current < content - dismissThresholdValue.value
+      ) {
+        animatedHeight.value = withTiming(
+          0,
+          { duration: Animation.durationFast },
+          (finished) => {
+            if (finished) {
+              runOnJS(emitDismiss)();
+            }
+          }
+        );
+        return;
+      }
+
+      const midpoint = (content + full) / 2;
+
+      if (current > midpoint) {
+        animatedHeight.value = withTiming(
+          full,
+          { duration: animationDuration, easing: Easing.out(Easing.cubic) },
+          (finished) => {
+            if (finished) {
+              runOnJS(emitFullscreen)();
+            }
+          }
+        );
+      } else {
+        animatedHeight.value = withTiming(
+          content,
+          { duration: animationDuration, easing: Easing.out(Easing.cubic) },
+          (finished) => {
+            if (finished) {
+              runOnJS(emitContentSettled)();
+            }
+          }
+        );
+      }
+    });
+
   const handleBackdropPress = useCallback(() => {
     if (!disableBackdropClose) onClose();
   }, [disableBackdropClose, onClose]);
 
-  // ── Android back ────────────────────────────────────────
   useEffect(() => {
     if (!visible) return;
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -246,20 +284,32 @@ const BottomSheetInner = ({
     return () => sub.remove();
   }, [visible, onClose]);
 
-  // ── Backdrop opacity linked to height ───────────────────
-  const opacity = animatedHeight.interpolate({
-    inputRange: [0, contentHeight || 1],
-    outputRange: [0, backdropOpacity],
-    extrapolate: 'clamp',
-  });
+  const opacity = useDerivedValue(() =>
+    interpolate(
+      animatedHeight.value,
+      [0, contentHeightValue.value || 1],
+      [0, backdropOpacity],
+      Extrapolation.CLAMP
+    )
+  );
 
-  // ── Border radius: flatten when near full-screen ────────
-  const clampMax = maxHeight > 0 ? maxHeight : 1;
-  const borderRadius = animatedHeight.interpolate({
-    inputRange: [clampMax - 30, clampMax],
-    outputRange: [Layout.radiusLarge, 0],
-    extrapolate: 'clamp',
-  });
+  const sheetAnimatedStyle = useAnimatedStyle(() => {
+    const clampMax = maxHeightValue.value > 0 ? maxHeightValue.value : 1;
+    const borderRadius = interpolate(
+      animatedHeight.value,
+      [clampMax - 30, clampMax],
+      [Layout.radiusLarge, 0],
+      Extrapolation.CLAMP
+    );
+
+    return {
+      height: animatedHeight.value,
+      maxHeight: maxHeightValue.value > 0 ? maxHeightValue.value : undefined,
+      paddingBottom: bottomInset,
+      borderTopLeftRadius: borderRadius,
+      borderTopRightRadius: borderRadius,
+    };
+  }, [bottomInset]);
 
   return (
     <View style={StyleSheet.absoluteFill} onLayout={handleContainerLayout}>
@@ -270,7 +320,6 @@ const BottomSheetInner = ({
         style={backdropStyle}
       />
 
-      {/* Sheet anchored to bottom — clipped at topInset */}
       <View
         style={[
           commonStyles.absoluteAnchorBottom,
@@ -279,32 +328,20 @@ const BottomSheetInner = ({
         pointerEvents="box-none"
       >
         <Animated.View
-          style={[
-            styles.sheet,
-            { backgroundColor },
-            style,
-            {
-              height: animatedHeight,
-              maxHeight: maxHeight > 0 ? maxHeight : undefined,
-              paddingBottom: bottomInset,
-              borderTopLeftRadius: borderRadius,
-              borderTopRightRadius: borderRadius,
-            },
-          ]}
+          style={[styles.sheet, { backgroundColor }, style, sheetAnimatedStyle]}
         >
           {showHandle && (
-            <View
-              style={[styles.handleContainer, handleContainerStyle]}
-              {...(draggable ? panResponder.panHandlers : {})}
-            >
-              <View
-                style={[
-                  styles.handle,
-                  { backgroundColor: handleColor },
-                  handleStyle,
-                ]}
-              />
-            </View>
+            <GestureDetector gesture={panGesture}>
+              <View style={[styles.handleContainer, handleContainerStyle]}>
+                <View
+                  style={[
+                    styles.handle,
+                    { backgroundColor: handleColor },
+                    handleStyle,
+                  ]}
+                />
+              </View>
+            </GestureDetector>
           )}
 
           <View style={[styles.content, contentContainerStyle]}>
@@ -313,7 +350,6 @@ const BottomSheetInner = ({
         </Animated.View>
       </View>
 
-      {/* Hidden measurer */}
       <View
         style={styles.measurer}
         onLayout={handleContentLayout}

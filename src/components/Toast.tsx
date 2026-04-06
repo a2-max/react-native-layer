@@ -8,11 +8,18 @@ import {
   useState,
   type PropsWithChildren,
 } from 'react';
-import { Animated, Keyboard, Text, View } from 'react-native';
+import { Platform, Text, ToastAndroid, View } from 'react-native';
+import Animated, {
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../core/constants';
 import { toastStyles as styles } from '../core/styles';
 import type { ToastConfig, ToastContextValue } from '../types/toast';
+import { closeKeyboard } from '../hooks/useKeyboard';
 
 const TOAST_MAX_LINES = 2;
 const DEFAULT_DURATION = 3000;
@@ -35,47 +42,52 @@ export const useToast = (): ToastContextValue => useContext(ToastContext);
 export const ToastProvider = ({ children }: PropsWithChildren) => {
   const insets = useSafeAreaInsets();
   const [toast, setToast] = useState<ToastConfig | null>(null);
-  const opacity = useRef(new Animated.Value(0)).current;
+  const opacity = useSharedValue(0);
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const usesNativeAndroidToast = Platform.OS === 'android';
 
   const hide = useCallback(() => {
-    Animated.timing(opacity, {
-      toValue: 0,
-      duration: ANIM_DURATION,
-      useNativeDriver: true,
-    }).start(({ finished }) => {
-      if (finished) setToast(null);
+    opacity.value = withTiming(0, { duration: ANIM_DURATION }, (finished) => {
+      if (finished) {
+        runOnJS(setToast)(null);
+      }
     });
   }, [opacity]);
 
   const showToast = useCallback(
     (config: ToastConfig) => {
-      Keyboard.dismiss();
+      closeKeyboard();
 
-      // Clear any existing timer
-      if (timerRef.current) clearTimeout(timerRef.current);
+      if (usesNativeAndroidToast) {
+        const duration =
+          (config.duration ?? DEFAULT_DURATION) >= DEFAULT_DURATION
+            ? ToastAndroid.LONG
+            : ToastAndroid.SHORT;
+        let gravity = ToastAndroid.BOTTOM;
+        if (config.position === 'top') {
+          gravity = ToastAndroid.TOP;
+        } else if (config.position === 'center') {
+          gravity = ToastAndroid.CENTER;
+        }
 
-      // If a toast is already visible, hide it first then show the new one
-      if (toast) {
-        opacity.setValue(0);
+        ToastAndroid.showWithGravity(config.message, duration, gravity);
+        return;
       }
 
+      if (timerRef.current) clearTimeout(timerRef.current);
+
+      opacity.value = 0;
       setToast(config);
 
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: ANIM_DURATION,
-        useNativeDriver: true,
-      }).start();
+      opacity.value = withTiming(1, { duration: ANIM_DURATION });
 
       timerRef.current = setTimeout(() => {
         hide();
       }, config.duration ?? DEFAULT_DURATION);
     },
-    [toast, opacity, hide]
+    [hide, opacity, usesNativeAndroidToast]
   );
 
-  // Cleanup timer on unmount
   useEffect(() => {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
@@ -88,7 +100,10 @@ export const ToastProvider = ({ children }: PropsWithChildren) => {
   const bg = toast?.backgroundColor ?? Colors.gray900;
   const textColor = toast?.textColor ?? Colors.white;
 
-  // ── Position calculation ────────────────────────────────
+  const toastAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+  }));
+
   let positionStyle: object;
   if (position === 'top') {
     positionStyle = { top: insets.top + 12 };
@@ -103,10 +118,10 @@ export const ToastProvider = ({ children }: PropsWithChildren) => {
     <ToastContext.Provider value={contextValue}>
       {children}
 
-      {toast ? (
+      {!usesNativeAndroidToast && toast ? (
         <View style={[styles.container, positionStyle]} pointerEvents="none">
           <Animated.View
-            style={[styles.pill, { backgroundColor: bg, opacity }]}
+            style={[styles.pill, { backgroundColor: bg }, toastAnimatedStyle]}
           >
             <Text
               style={[styles.text, { color: textColor }]}

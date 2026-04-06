@@ -8,6 +8,8 @@ export interface BottomSheetProps extends Omit<LayerProps, 'children'> {
     children: ReactNode;
     /** If true, the sheet can be dragged. @default true */
     draggable?: boolean;
+    /** If true, the sheet can be dragged upward to full-screen. @default false */
+    enableUpwardDrag?: boolean;
     /** If true, the drag handle bar is shown. @default true */
     showHandle?: boolean;
     /**
