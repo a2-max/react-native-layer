@@ -11,12 +11,12 @@ import Animated, {
   Easing,
   Extrapolation,
   interpolate,
-  runOnJS,
   useAnimatedStyle,
   useDerivedValue,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 
 import { Backdrop } from '../core/Backdrop';
 import { Animation, Colors, Layout } from '../core/constants';
@@ -159,7 +159,7 @@ const BottomSheetInner = ({
         { duration: animationDuration },
         (finished) => {
           if (finished) {
-            runOnJS(onModalHide)();
+            scheduleOnRN(onModalHide);
           }
         }
       );
@@ -174,7 +174,7 @@ const BottomSheetInner = ({
         { duration: animationDuration },
         (finished) => {
           if (finished && onOpenRef.current) {
-            runOnJS(emitOpen)();
+            scheduleOnRN(emitOpen);
           }
         }
       );
@@ -222,7 +222,7 @@ const BottomSheetInner = ({
 
       const direction = gesture.translationY < 0 ? 'up' : 'down';
       if (direction === 'down' || enableUpwardDrag) {
-        runOnJS(emitDrag)(direction, full > 0 ? nextHeight / full : 0);
+        scheduleOnRN(emitDrag, direction, full > 0 ? nextHeight / full : 0);
       }
     })
     .onEnd((gesture) => {
@@ -239,7 +239,7 @@ const BottomSheetInner = ({
           { duration: Animation.durationFast },
           (finished) => {
             if (finished) {
-              runOnJS(emitDismiss)();
+              scheduleOnRN(emitDismiss);
             }
           }
         );
@@ -254,7 +254,7 @@ const BottomSheetInner = ({
           { duration: animationDuration, easing: Easing.out(Easing.cubic) },
           (finished) => {
             if (finished) {
-              runOnJS(emitFullscreen)();
+              scheduleOnRN(emitFullscreen);
             }
           }
         );
@@ -264,7 +264,7 @@ const BottomSheetInner = ({
           { duration: animationDuration, easing: Easing.out(Easing.cubic) },
           (finished) => {
             if (finished) {
-              runOnJS(emitContentSettled)();
+              scheduleOnRN(emitContentSettled);
             }
           }
         );

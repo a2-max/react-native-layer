@@ -12,11 +12,11 @@ import {
 } from 'react-native';
 import Animated, {
   Easing,
-  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 import { Animation, Colors } from '../core/constants';
 import { commonStyles, confirmModalStyles as styles } from '../core/styles';
 import type { ConfirmModalProps } from '../types/confirmModal';
@@ -81,7 +81,7 @@ export const ConfirmModal = ({
         { duration: animationDuration },
         (finished) => {
           if (finished && onOpenRef.current) {
-            runOnJS(onOpenRef.current)();
+            scheduleOnRN(onOpenRef.current);
           }
         }
       );
@@ -95,7 +95,7 @@ export const ConfirmModal = ({
         { duration: animationDuration },
         (finished) => {
           if (finished) {
-            runOnJS(resetAfterClose)();
+            scheduleOnRN(resetAfterClose);
           }
         }
       );
