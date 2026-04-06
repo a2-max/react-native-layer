@@ -1,16 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  Animated,
-  BackHandler,
-  Keyboard,
-  Modal,
-  StyleSheet,
-  View,
-} from 'react-native';
+import { BackHandler, Modal, StyleSheet, View } from 'react-native';
+import Animated, {
+  Extrapolation,
+  interpolate,
+  runOnJS,
+  useAnimatedStyle,
+  useDerivedValue,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { Backdrop } from './Backdrop';
 import { Animation, Colors, SCREEN_HEIGHT } from './constants';
 import { layerStyles } from './styles';
 import type { LayerProps } from '../types/layer';
+import { closeKeyboard } from '../hooks/useKeyboard';
 
 export const Layer = ({
   visible,
@@ -23,30 +26,42 @@ export const Layer = ({
   backdropColor = Colors.black,
   backdropStyle,
 }: LayerProps) => {
-  const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const [modalVisible, setModalVisible] = useState(false);
+  const translateY = useSharedValue(SCREEN_HEIGHT);
+  const onOpenRef = useRef(onOpen);
+
+  onOpenRef.current = onOpen;
+
+  const handleOpen = useCallback(() => {
+    onOpenRef.current?.();
+  }, []);
 
   useEffect(() => {
     if (visible) {
-      Keyboard.dismiss();
+      closeKeyboard();
       setModalVisible(true);
-      Animated.timing(translateY, {
-        toValue: 0,
-        duration: animationDuration,
-        useNativeDriver: true,
-      }).start(({ finished }) => {
-        if (finished) onOpen?.();
-      });
+      translateY.value = SCREEN_HEIGHT;
+      translateY.value = withTiming(
+        0,
+        { duration: animationDuration },
+        (finished) => {
+          if (finished && onOpenRef.current) {
+            runOnJS(handleOpen)();
+          }
+        }
+      );
     } else {
-      Animated.timing(translateY, {
-        toValue: SCREEN_HEIGHT,
-        duration: animationDuration,
-        useNativeDriver: true,
-      }).start(({ finished }) => {
-        if (finished) setModalVisible(false);
-      });
+      translateY.value = withTiming(
+        SCREEN_HEIGHT,
+        { duration: animationDuration },
+        (finished) => {
+          if (finished) {
+            runOnJS(setModalVisible)(false);
+          }
+        }
+      );
     }
-  }, [visible, animationDuration, translateY]);
+  }, [visible, animationDuration, handleOpen, translateY]);
 
   useEffect(() => {
     if (!visible) return;
@@ -63,10 +78,18 @@ export const Layer = ({
     if (!disableBackdropClose) onClose();
   }, [disableBackdropClose, onClose]);
 
-  const opacity = translateY.interpolate({
-    inputRange: [0, SCREEN_HEIGHT],
-    outputRange: [backdropOpacity, 0],
-  });
+  const opacity = useDerivedValue(() =>
+    interpolate(
+      translateY.value,
+      [0, SCREEN_HEIGHT],
+      [backdropOpacity, 0],
+      Extrapolation.CLAMP
+    )
+  );
+
+  const containerStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+  }));
 
   return (
     <Modal
@@ -84,9 +107,7 @@ export const Layer = ({
           style={backdropStyle}
         />
 
-        <Animated.View
-          style={[layerStyles.container, { transform: [{ translateY }] }]}
-        >
+        <Animated.View style={[layerStyles.container, containerStyle]}>
           {children}
         </Animated.View>
       </View>

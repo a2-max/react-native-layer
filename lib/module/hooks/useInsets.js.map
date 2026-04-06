@@ -1,0 +1,1 @@
+{"version":3,"names":["useSafeAreaInsets","SafeAreaProvider","SafeAreaInsetsProvider","useInsets"],"sourceRoot":"../../../src","sources":["hooks/useInsets.ts"],"mappings":";;AAAA,SAASA,iBAAiB,QAAQ,gCAAgC;AAElE,SAASC,gBAAgB,IAAIC,sBAAsB,QAAQ,gCAAgC;AAS3F;AACA;AACA;AACA;AACA,OAAO,SAASC,SAASA,CAAA,EAAW;EAClC,OAAOH,iBAAiB,CAAC,CAAC;AAC5B","ignoreList":[]}

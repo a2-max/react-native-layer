@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  Animated,
   BackHandler,
   KeyboardAvoidingView,
   Modal,
@@ -11,6 +10,13 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import Animated, {
+  Easing,
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { Animation, Colors } from '../core/constants';
 import { commonStyles, confirmModalStyles as styles } from '../core/styles';
 import type { ConfirmModalProps } from '../types/confirmModal';
@@ -54,37 +60,47 @@ export const ConfirmModal = ({
 }: ConfirmModalProps) => {
   const [value, setValue] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
-  const opacity = useRef(new Animated.Value(0)).current;
-  const scale = useRef(new Animated.Value(Animation.scaleInitial)).current;
+  const opacity = useSharedValue(0);
+  const scale = useSharedValue<number>(Animation.scaleInitial);
+  const onOpenRef = useRef(onOpen);
+
+  onOpenRef.current = onOpen;
+
+  const resetAfterClose = () => {
+    setModalVisible(false);
+    setValue('');
+  };
 
   useEffect(() => {
     if (visible) {
       setModalVisible(true);
-      Animated.parallel([
-        Animated.timing(opacity, {
-          toValue: 1,
-          duration: animationDuration,
-          useNativeDriver: true,
-        }),
-        Animated.spring(scale, {
-          toValue: 1,
-          useNativeDriver: true,
-          bounciness: Animation.bounciness,
-        }),
-      ]).start(({ finished }) => {
-        if (finished) onOpen?.();
+      opacity.value = 0;
+      scale.value = Animation.scaleInitial;
+      opacity.value = withTiming(
+        1,
+        { duration: animationDuration },
+        (finished) => {
+          if (finished && onOpenRef.current) {
+            runOnJS(onOpenRef.current)();
+          }
+        }
+      );
+      scale.value = withTiming(1, {
+        duration: animationDuration,
+        easing: Easing.out(Easing.cubic),
       });
     } else {
-      Animated.timing(opacity, {
-        toValue: 0,
-        duration: animationDuration,
-        useNativeDriver: true,
-      }).start(({ finished }) => {
-        if (finished) {
-          setModalVisible(false);
-          scale.setValue(Animation.scaleInitial);
-          setValue('');
+      opacity.value = withTiming(
+        0,
+        { duration: animationDuration },
+        (finished) => {
+          if (finished) {
+            runOnJS(resetAfterClose)();
+          }
         }
+      );
+      scale.value = withTiming(Animation.scaleInitial, {
+        duration: animationDuration,
       });
     }
   }, [visible, animationDuration, opacity, scale]);
@@ -108,6 +124,15 @@ export const ConfirmModal = ({
     }
   };
 
+  const backdropAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+  }));
+
+  const cardAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ scale: scale.value }],
+  }));
+
   return (
     <Modal
       transparent
@@ -127,7 +152,7 @@ export const ConfirmModal = ({
               StyleSheet.absoluteFill,
               { backgroundColor: backdropColor },
               backdropStyle,
-              { opacity },
+              backdropAnimatedStyle,
             ]}
           >
             <Pressable
@@ -142,7 +167,7 @@ export const ConfirmModal = ({
               styles.card,
               { backgroundColor: cardBackgroundColor },
               cardStyle,
-              { opacity, transform: [{ scale }] },
+              cardAnimatedStyle,
             ]}
           >
             <Text
