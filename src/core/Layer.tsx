@@ -3,12 +3,12 @@ import { BackHandler, Modal, StyleSheet, View } from 'react-native';
 import Animated, {
   Extrapolation,
   interpolate,
-  runOnJS,
   useAnimatedStyle,
   useDerivedValue,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 import { Backdrop } from './Backdrop';
 import { Animation, Colors, SCREEN_HEIGHT } from './constants';
 import { layerStyles } from './styles';
@@ -46,7 +46,7 @@ export const Layer = ({
         { duration: animationDuration },
         (finished) => {
           if (finished && onOpenRef.current) {
-            runOnJS(handleOpen)();
+            scheduleOnRN(handleOpen);
           }
         }
       );
@@ -56,7 +56,7 @@ export const Layer = ({
         { duration: animationDuration },
         (finished) => {
           if (finished) {
-            runOnJS(setModalVisible)(false);
+            scheduleOnRN(setModalVisible, false);
           }
         }
       );

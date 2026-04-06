@@ -9,11 +9,11 @@ import {
 } from 'react-native';
 import Animated, {
   Easing,
-  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 import { Animation, Colors } from '../core/constants';
 import { alertStyles as styles, commonStyles } from '../core/styles';
 import type { AlertProps, AlertType } from '../types/alert';
@@ -129,7 +129,7 @@ const AlertInner = ({
           { duration: animationDuration },
           (finished) => {
             if (finished && onOpenRef.current) {
-              runOnJS(onOpenRef.current)();
+              scheduleOnRN(onOpenRef.current);
             }
           }
         );
@@ -145,7 +145,7 @@ const AlertInner = ({
           { duration: animationDuration },
           (finished) => {
             if (finished && onOpenRef.current) {
-              runOnJS(onOpenRef.current)();
+              scheduleOnRN(onOpenRef.current);
             }
           }
         );
@@ -160,7 +160,7 @@ const AlertInner = ({
         { duration: animationDuration },
         (finished) => {
           if (finished) {
-            runOnJS(onModalHide)();
+            scheduleOnRN(onModalHide);
           }
         }
       );
@@ -173,7 +173,7 @@ const AlertInner = ({
         { duration: animationDuration },
         (finished) => {
           if (finished) {
-            runOnJS(onModalHide)();
+            scheduleOnRN(onModalHide);
           }
         }
       );

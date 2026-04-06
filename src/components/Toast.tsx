@@ -10,11 +10,11 @@ import {
 } from 'react';
 import { Platform, Text, ToastAndroid, View } from 'react-native';
 import Animated, {
-  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../core/constants';
 import { toastStyles as styles } from '../core/styles';
@@ -49,7 +49,7 @@ export const ToastProvider = ({ children }: PropsWithChildren) => {
   const hide = useCallback(() => {
     opacity.value = withTiming(0, { duration: ANIM_DURATION }, (finished) => {
       if (finished) {
-        runOnJS(setToast)(null);
+        scheduleOnRN(setToast, null);
       }
     });
   }, [opacity]);
