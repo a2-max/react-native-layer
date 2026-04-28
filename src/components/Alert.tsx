@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   BackHandler,
   Modal,
@@ -109,15 +109,16 @@ const AlertInner = ({
   const opacity = useSharedValue(0);
   const scale = useSharedValue<number>(Animation.scaleInitial);
   const translateY = useSharedValue(200);
-  const onOpenRef = useRef(onOpen);
-
-  onOpenRef.current = onOpen;
 
   const resolvedButtonColor =
     buttonColor ?? (type ? TYPE_COLORS[type].button : Colors.gray900);
 
   const IconComponent = type ? TYPE_ICON[type] : null;
   const iconColor = type ? TYPE_COLORS[type].icon : undefined;
+
+  const handleOpen = useCallback(() => {
+    onOpen?.();
+  }, []);
 
   useEffect(() => {
     if (visible) {
@@ -128,8 +129,8 @@ const AlertInner = ({
           1,
           { duration: animationDuration },
           (finished) => {
-            if (finished && onOpenRef.current) {
-              scheduleOnRN(onOpenRef.current);
+            if (finished && onOpen) {
+              scheduleOnRN(handleOpen);
             }
           }
         );
@@ -144,8 +145,8 @@ const AlertInner = ({
           1,
           { duration: animationDuration },
           (finished) => {
-            if (finished && onOpenRef.current) {
-              scheduleOnRN(onOpenRef.current);
+            if (finished && onOpen) {
+              scheduleOnRN(handleOpen);
             }
           }
         );
