@@ -1,5 +1,5 @@
 {
-  "name": "react-native-layer",
+  "name": "@whoisrijan/react-native-layer",
   "version": "0.1.0",
   "description": "A lightweight overlay & layer system for React Native",
   "main": "./lib/module/index.js",
@@ -38,7 +38,7 @@
     "typecheck": "tsc",
     "lint": "eslint \"**/*.{js,ts,tsx}\"",
     "test": "jest",
-    "release": "release-it --only-version"
+    "release": "release-it"
   },
   "keywords": [
     "react-native",

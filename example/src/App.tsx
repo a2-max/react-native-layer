@@ -36,7 +36,7 @@ export default function App() {
         >
           <Text style={styles.title}>react-native-layer</Text>
           <Text style={styles.subtitle}>
-            Lightweight overlay primitives developed by Yatri Motorcycles
+            Lightweight overlay primitives developed by Rijan Neupane
           </Text>
 
           <ScrollView
