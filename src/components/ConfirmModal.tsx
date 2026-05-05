@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   BackHandler,
   KeyboardAvoidingView,
@@ -36,7 +36,6 @@ export const ConfirmModal = ({
   onOpen,
   disableBackdropClose = false,
   animationDuration = Animation.durationFast,
-  // Color-only props
   backdropColor = Colors.backdropDark,
   cardBackgroundColor = Colors.white,
   titleColor = Colors.gray900,
@@ -45,7 +44,6 @@ export const ConfirmModal = ({
   positiveTextColor = Colors.white,
   negativeButtonColor = Colors.gray100,
   negativeTextColor = Colors.gray700,
-  // Style overrides
   backdropStyle,
   cardStyle,
   titleStyle,
@@ -60,31 +58,37 @@ export const ConfirmModal = ({
 }: ConfirmModalProps) => {
   const [value, setValue] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
+
   const opacity = useSharedValue(0);
   const scale = useSharedValue<number>(Animation.scaleInitial);
-  const onOpenRef = useRef(onOpen);
 
-  onOpenRef.current = onOpen;
+  // ✅ SAFE CALLBACK
+  const handleOpen = useCallback(() => {
+    onOpen?.();
+  }, [onOpen]);
 
-  const resetAfterClose = () => {
+  const resetAfterClose = useCallback(() => {
     setModalVisible(false);
     setValue('');
-  };
+  }, []);
 
   useEffect(() => {
     if (visible) {
       setModalVisible(true);
+
       opacity.value = 0;
       scale.value = Animation.scaleInitial;
+
       opacity.value = withTiming(
         1,
         { duration: animationDuration },
         (finished) => {
-          if (finished && onOpenRef.current) {
-            scheduleOnRN(onOpenRef.current);
+          if (finished) {
+            scheduleOnRN(handleOpen);
           }
         }
       );
+
       scale.value = withTiming(1, {
         duration: animationDuration,
         easing: Easing.out(Easing.cubic),
@@ -99,11 +103,12 @@ export const ConfirmModal = ({
           }
         }
       );
+
       scale.value = withTiming(Animation.scaleInitial, {
         duration: animationDuration,
       });
     }
-  }, [visible, animationDuration, opacity, scale]);
+  }, [visible, animationDuration, handleOpen, resetAfterClose]);
 
   useEffect(() => {
     if (!visible) return;
@@ -118,11 +123,11 @@ export const ConfirmModal = ({
 
   const isValid = !showInput || !validationText || value === validationText;
 
-  const handleBackdropPress = () => {
+  const handleBackdropPress = useCallback(() => {
     if (!disableBackdropClose) {
       onCancel();
     }
-  };
+  }, [disableBackdropClose, onCancel]);
 
   const backdropAnimatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,

@@ -6,9 +6,13 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import {
+  Gesture,
+  GestureDetector,
+  GestureHandlerRootView,
+} from 'react-native-gesture-handler';
 import Animated, {
-  Easing,
+  cancelAnimation,
   Extrapolation,
   interpolate,
   useAnimatedStyle,
@@ -31,6 +35,7 @@ export const BottomSheet = (props: BottomSheetProps) => {
     onClose,
     animationDuration = Animation.durationDefault,
   } = props;
+
   const [modalVisible, setModalVisible] = useState(false);
 
   useEffect(() => {
@@ -106,54 +111,56 @@ const BottomSheetInner = ({
   const maxHeightValue = useSharedValue(0);
   const dismissThresholdValue = useSharedValue(dismissThreshold);
 
-  const onCloseRef = useRef(onClose);
-  const onOpenRef = useRef(onOpen);
-  const onDragRef = useRef(onDrag);
-  const onDragEndRef = useRef(onDragEnd);
-  const onFullScreenRef = useRef(onFullScreen);
+  const enableUpwardDragValue = useSharedValue(enableUpwardDrag ? 1 : 0);
 
-  onCloseRef.current = onClose;
-  onOpenRef.current = onOpen;
-  onDragRef.current = onDrag;
-  onDragEndRef.current = onDragEnd;
-  onFullScreenRef.current = onFullScreen;
-
-  useEffect(() => {
-    maxHeightValue.value = maxHeight;
-  }, [maxHeight, maxHeightValue]);
-
-  useEffect(() => {
-    dismissThresholdValue.value = dismissThreshold;
-  }, [dismissThreshold, dismissThresholdValue]);
+  const hasOpened = useRef(false);
 
   const emitOpen = useCallback(() => {
-    onOpenRef.current?.();
-  }, []);
+    onOpen?.();
+  }, [onOpen]);
 
   const emitDismiss = useCallback(() => {
-    onCloseRef.current();
-    onDragEndRef.current?.('dismissed');
-  }, []);
+    onClose();
+    onDragEnd?.('dismissed');
+  }, [onClose, onDragEnd]);
 
   const emitFullscreen = useCallback(() => {
-    onFullScreenRef.current?.();
-    onDragEndRef.current?.('fullscreen');
-  }, []);
+    onFullScreen?.();
+    onDragEnd?.('fullscreen');
+  }, [onFullScreen, onDragEnd]);
 
   const emitContentSettled = useCallback(() => {
-    onDragEndRef.current?.('content');
-  }, []);
+    onDragEnd?.('content');
+  }, [onDragEnd]);
 
-  const emitDrag = useCallback((direction: 'up' | 'down', fraction: number) => {
-    onDragRef.current?.(direction, fraction);
-  }, []);
+  const emitDrag = useCallback(
+    (direction: 'up' | 'down', fraction: number) => {
+      onDrag?.(direction, fraction);
+    },
+    [onDrag]
+  );
 
   const handleContainerLayout = useCallback((e: LayoutChangeEvent) => {
     setContainerHeight(e.nativeEvent.layout.height);
   }, []);
 
   useEffect(() => {
+    maxHeightValue.value = maxHeight;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [maxHeight]);
+
+  useEffect(() => {
+    dismissThresholdValue.value = dismissThreshold;
+  }, [dismissThreshold]);
+
+  useEffect(() => {
+    enableUpwardDragValue.value = enableUpwardDrag ? 1 : 0;
+  }, [enableUpwardDrag]);
+
+  useEffect(() => {
     if (!visible) {
+      hasOpened.current = false;
+
       animatedHeight.value = withTiming(
         0,
         { duration: animationDuration },
@@ -164,29 +171,25 @@ const BottomSheetInner = ({
         }
       );
     }
-  }, [visible, animationDuration, animatedHeight, onModalHide]);
+  }, [visible, animationDuration, onModalHide]);
 
   useEffect(() => {
-    if (visible && contentHeight > 0 && maxHeight > 0) {
+    if (visible && contentHeight > 0 && maxHeight > 0 && !hasOpened.current) {
+      hasOpened.current = true;
+
       const target = Math.min(contentHeight, maxHeight);
+
       animatedHeight.value = withTiming(
         target,
         { duration: animationDuration },
         (finished) => {
-          if (finished && onOpenRef.current) {
+          if (finished) {
             scheduleOnRN(emitOpen);
           }
         }
       );
     }
-  }, [
-    visible,
-    contentHeight,
-    maxHeight,
-    animationDuration,
-    animatedHeight,
-    emitOpen,
-  ]);
+  }, [visible, contentHeight, maxHeight, animationDuration, emitOpen]);
 
   const handleContentLayout = useCallback(
     (e: LayoutChangeEvent) => {
@@ -194,79 +197,89 @@ const BottomSheetInner = ({
         e.nativeEvent.layout.height + bottomInset,
         maxHeightForContent
       );
+
       if (Math.abs(measured - contentHeightValue.value) < 1) return;
 
       contentHeightValue.value = measured;
       setContentHeight(measured);
     },
-    [bottomInset, contentHeightValue, maxHeightForContent]
+    [bottomInset, maxHeightForContent]
   );
 
   const panGesture = Gesture.Pan()
     .enabled(draggable)
-    .minDistance(Layout.panThreshold)
+    .minDistance(4)
     .onBegin(() => {
       dragStartHeight.value = animatedHeight.value;
+      cancelAnimation(animatedHeight);
     })
     .onUpdate((gesture) => {
       const full = maxHeightValue.value;
-      const upwardDelta = enableUpwardDrag
-        ? gesture.translationY
-        : Math.max(gesture.translationY, 0);
+      const dy = gesture.translationY;
+      const isUpwardDrag = dy < 0;
+
+      // Always allow downward drag.
+      // Allow upward drag only when enableUpwardDrag is true.
+      if (isUpwardDrag && enableUpwardDragValue.value === 0) {
+        // Block height change but still emit the drag callback
+        // so consumers can react (e.g. scroll hand-off, visual cues).
+        scheduleOnRN(
+          emitDrag,
+          'up',
+          full > 0 ? animatedHeight.value / full : 0
+        );
+        return;
+      }
+
       const nextHeight = Math.max(
         0,
-        Math.min(full, dragStartHeight.value - upwardDelta)
+        Math.min(full, dragStartHeight.value - dy)
       );
 
       animatedHeight.value = nextHeight;
 
-      const direction = gesture.translationY < 0 ? 'up' : 'down';
-      if (direction === 'down' || enableUpwardDrag) {
-        scheduleOnRN(emitDrag, direction, full > 0 ? nextHeight / full : 0);
-      }
+      const direction = isUpwardDrag ? 'up' : 'down';
+      scheduleOnRN(emitDrag, direction, full > 0 ? nextHeight / full : 0);
     })
     .onEnd((gesture) => {
       const full = maxHeightValue.value;
       const content = contentHeightValue.value;
       const current = animatedHeight.value;
 
+      const velocityY = gesture.velocityY;
+
+      // Fast swipe down → dismiss
       if (
-        gesture.translationY > 0 &&
-        current < content - dismissThresholdValue.value
+        velocityY > 800 ||
+        (gesture.translationY > 0 &&
+          current < content - dismissThresholdValue.value)
       ) {
-        animatedHeight.value = withTiming(
-          0,
-          { duration: Animation.durationFast },
-          (finished) => {
-            if (finished) {
-              scheduleOnRN(emitDismiss);
-            }
-          }
+        animatedHeight.value = withTiming(0, {}, () =>
+          scheduleOnRN(emitDismiss)
         );
         return;
       }
 
+      // Fast swipe up - fullscreen (only when upward drag is enabled)
+      if (velocityY < -800 && enableUpwardDragValue.value !== 0) {
+        animatedHeight.value = withTiming(full, {}, () =>
+          scheduleOnRN(emitFullscreen)
+        );
+        return;
+      }
+
+      // Snap logic
       const midpoint = (content + full) / 2;
 
-      if (current > midpoint) {
-        animatedHeight.value = withTiming(
-          full,
-          { duration: animationDuration, easing: Easing.out(Easing.cubic) },
-          (finished) => {
-            if (finished) {
-              scheduleOnRN(emitFullscreen);
-            }
-          }
+      if (enableUpwardDragValue.value !== 0 && current > midpoint) {
+        // Snap to fullscreen when upward drag is enabled and past midpoint
+        animatedHeight.value = withTiming(full, {}, () =>
+          scheduleOnRN(emitFullscreen)
         );
       } else {
-        animatedHeight.value = withTiming(
-          content,
-          { duration: animationDuration, easing: Easing.out(Easing.cubic) },
-          (finished) => {
-            if (finished) {
-              scheduleOnRN(emitContentSettled);
-            }
-          }
+        // Always snap back to content height otherwise
+        animatedHeight.value = withTiming(content, {}, () =>
+          scheduleOnRN(emitContentSettled)
         );
       }
     });
@@ -277,10 +290,12 @@ const BottomSheetInner = ({
 
   useEffect(() => {
     if (!visible) return;
+
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       onClose();
       return true;
     });
+
     return () => sub.remove();
   }, [visible, onClose]);
 
@@ -294,7 +309,8 @@ const BottomSheetInner = ({
   );
 
   const sheetAnimatedStyle = useAnimatedStyle(() => {
-    const clampMax = maxHeightValue.value > 0 ? maxHeightValue.value : 1;
+    const clampMax = maxHeightValue.value || 1;
+
     const borderRadius = interpolate(
       animatedHeight.value,
       [clampMax - 30, clampMax],
@@ -304,64 +320,68 @@ const BottomSheetInner = ({
 
     return {
       height: animatedHeight.value,
-      maxHeight: maxHeightValue.value > 0 ? maxHeightValue.value : undefined,
+      maxHeight: maxHeightValue.value || undefined,
       paddingBottom: bottomInset,
       borderTopLeftRadius: borderRadius,
       borderTopRightRadius: borderRadius,
     };
-  }, [bottomInset]);
+  });
 
   return (
-    <View style={StyleSheet.absoluteFill} onLayout={handleContainerLayout}>
-      <Backdrop
-        opacity={opacity}
-        onPress={handleBackdropPress}
-        color={backdropColor}
-        style={backdropStyle}
-      />
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <View style={StyleSheet.absoluteFill} onLayout={handleContainerLayout}>
+        <Backdrop
+          opacity={opacity}
+          onPress={handleBackdropPress}
+          color={backdropColor}
+          style={backdropStyle}
+        />
 
-      <View
-        style={[
-          commonStyles.absoluteAnchorBottom,
-          { top: topInset, overflow: 'hidden' },
-        ]}
-        pointerEvents="box-none"
-      >
-        <Animated.View
-          style={[styles.sheet, { backgroundColor }, style, sheetAnimatedStyle]}
+        <View
+          style={[
+            commonStyles.absoluteAnchorBottom,
+            { top: topInset, overflow: 'hidden' },
+          ]}
+          pointerEvents="box-none"
         >
-          {showHandle && (
+          <Animated.View
+            style={[
+              styles.sheet,
+              { backgroundColor },
+              style,
+              sheetAnimatedStyle,
+            ]}
+          >
+            {/* GestureDetector is scoped only to the handle/top-bar area so it
+              never conflicts with ScrollView or other scrollable content below */}
             <GestureDetector gesture={panGesture}>
               <View style={[styles.handleContainer, handleContainerStyle]}>
-                <View
-                  style={[
-                    styles.handle,
-                    { backgroundColor: handleColor },
-                    handleStyle,
-                  ]}
-                />
+                {showHandle && (
+                  <View
+                    style={[
+                      styles.handle,
+                      { backgroundColor: handleColor },
+                      handleStyle,
+                    ]}
+                  />
+                )}
               </View>
             </GestureDetector>
-          )}
 
-          <View style={[styles.content, contentContainerStyle]}>
-            {children}
-          </View>
-        </Animated.View>
-      </View>
+            <View style={[styles.content, contentContainerStyle]}>
+              {children}
+            </View>
+          </Animated.View>
+        </View>
 
-      <View
-        style={styles.measurer}
-        onLayout={handleContentLayout}
-        pointerEvents="none"
-      >
-        {showHandle && (
-          <View style={styles.handleContainer}>
-            <View style={styles.handle} />
-          </View>
-        )}
-        {children}
+        <View
+          style={styles.measurer}
+          onLayout={handleContentLayout}
+          pointerEvents="none"
+        >
+          {children}
+        </View>
       </View>
-    </View>
+    </GestureHandlerRootView>
   );
 };

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { BackHandler, Modal, StyleSheet, View } from 'react-native';
 import Animated, {
   Extrapolation,
@@ -28,13 +28,10 @@ export const Layer = ({
 }: LayerProps) => {
   const [modalVisible, setModalVisible] = useState(false);
   const translateY = useSharedValue(SCREEN_HEIGHT);
-  const onOpenRef = useRef(onOpen);
-
-  onOpenRef.current = onOpen;
 
   const handleOpen = useCallback(() => {
-    onOpenRef.current?.();
-  }, []);
+    onOpen?.();
+  }, [onOpen]);
 
   useEffect(() => {
     if (visible) {
@@ -45,7 +42,7 @@ export const Layer = ({
         0,
         { duration: animationDuration },
         (finished) => {
-          if (finished && onOpenRef.current) {
+          if (finished && onOpen) {
             scheduleOnRN(handleOpen);
           }
         }
