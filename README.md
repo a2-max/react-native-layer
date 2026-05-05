@@ -40,13 +40,13 @@ A high-performance overlay system for React Native built with Reanimated and Ges
 ## Installation
 
 ```sh
-npm install react-native-layer react-native-gesture-handler react-native-reanimated react-native-safe-area-context react-native-svg
+npm install @whoisrijan/react-native-layer react-native-gesture-handler react-native-reanimated react-native-safe-area-context react-native-svg
 ```
 
 or
 
 ```sh
-yarn add react-native-layer react-native-gesture-handler react-native-reanimated react-native-safe-area-context react-native-svg
+yarn add @whoisrijan/react-native-layer react-native-gesture-handler react-native-reanimated react-native-safe-area-context react-native-svg
 ```
 
 ### iOS
