@@ -60,6 +60,7 @@ export interface BottomSheetProps extends Omit<LayerProps, 'children'> {
   // ── Full style overrides ────────────────────────────────
 
   /** Style applied to the sheet container. */
+  parentStyle?: StyleProp<ViewStyle>;
   style?: StyleProp<ViewStyle>;
 
   /** Style applied to the handle bar. */
