@@ -2,7 +2,7 @@
   "compilerOptions": {
     "rootDir": ".",
     "paths": {
-      "react-native-layer": ["./src/index"]
+      "@whoisrijan/react-native-layer": ["./src/index"]
     },
     "allowUnreachableCode": false,
     "allowUnusedLabels": false,

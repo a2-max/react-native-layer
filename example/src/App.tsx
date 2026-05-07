@@ -11,8 +11,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { BottomSheet, ConfirmModal, Alert, useToast } from 'react-native-layer';
-import type { DragDirection } from 'react-native-layer';
+import {
+  BottomSheet,
+  ConfirmModal,
+  Alert,
+  useToast,
+} from '@whoisrijan/react-native-layer';
+import type { DragDirection } from '@whoisrijan/react-native-layer';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 export default function App() {

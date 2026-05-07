@@ -319,6 +319,10 @@ const BottomSheetInner = ({
     );
 
     return {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
       height: animatedHeight.value,
       maxHeight: maxHeightValue.value || undefined,
       paddingBottom: bottomInset,
