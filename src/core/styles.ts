@@ -14,7 +14,7 @@ export const commonStyles = StyleSheet.create({
   },
   absoluteAnchorBottom: {
     ...StyleSheet.absoluteFill,
-    justifyContent: 'flex-start',
+    justifyContent: 'flex-end',
   },
 });
 
