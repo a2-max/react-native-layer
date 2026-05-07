@@ -58,6 +58,8 @@ export interface BottomSheetProps extends Omit<LayerProps, 'children'> {
   handleColor?: string;
 
   // ── Full style overrides ────────────────────────────────
+  /** Style applied to the sheet parent container. */
+  styleWrapper?: StyleProp<ViewStyle>;
 
   /** Style applied to the sheet container. */
   style?: StyleProp<ViewStyle>;

@@ -13,7 +13,7 @@ export const commonStyles = StyleSheet.create({
     alignItems: 'center',
   },
   absoluteAnchorBottom: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     justifyContent: 'flex-end',
   },
 });
