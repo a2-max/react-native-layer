@@ -89,7 +89,7 @@ const BottomSheetInner = ({
   disableBackdropClose = false,
   backgroundColor = Colors.white,
   handleColor = Colors.gray300,
-  parentStyle,
+  styleWrapper,
   style,
   handleStyle,
   handleContainerStyle,
@@ -346,7 +346,7 @@ const BottomSheetInner = ({
           style={[
             commonStyles.absoluteAnchorBottom,
             { top: topInset, overflow: 'hidden' },
-            parentStyle,
+            styleWrapper,
           ]}
           pointerEvents="box-none"
         >
