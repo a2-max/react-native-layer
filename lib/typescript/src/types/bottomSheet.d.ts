@@ -39,6 +39,8 @@ export interface BottomSheetProps extends Omit<LayerProps, 'children'> {
     backgroundColor?: string;
     /** Color of the drag handle bar. @default Colors.gray300 */
     handleColor?: string;
+    /** Style applied to the sheet parent container. */
+    styleWrapper?: StyleProp<ViewStyle>;
     /** Style applied to the sheet container. */
     style?: StyleProp<ViewStyle>;
     /** Style applied to the handle bar. */
