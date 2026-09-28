@@ -40,13 +40,13 @@ A high-performance overlay system for React Native built with Reanimated and Ges
 ## Installation
 
 ```sh
-npm install @whoisrijan/react-native-layer react-native-gesture-handler react-native-reanimated react-native-safe-area-context react-native-svg
+npm install @whoisrijan/react-native-layer react-native-gesture-handler react-native-reanimated react-native-worklets react-native-safe-area-context react-native-svg
 ```
 
 or
 
 ```sh
-yarn add @whoisrijan/react-native-layer react-native-gesture-handler react-native-reanimated react-native-safe-area-context react-native-svg
+yarn add @whoisrijan/react-native-layer react-native-gesture-handler react-native-reanimated react-native-worklets react-native-safe-area-context react-native-svg
 ```
 
 ### iOS
@@ -55,11 +55,11 @@ yarn add @whoisrijan/react-native-layer react-native-gesture-handler react-nativ
 cd ios && pod install
 ```
 
-> **Expo users:** `react-native-safe-area-context`, `react-native-svg`, `react-native-gesture-handler`, and `react-native-reanimated` should match your Expo SDK support matrix. Use `npx expo install` to get compatible versions.
+> **Expo users:** `react-native-safe-area-context`, `react-native-svg`, `react-native-gesture-handler`, `react-native-reanimated`, and `react-native-worklets` should match your Expo SDK support matrix. Use `npx expo install` to get compatible versions.
 
 ### Setup
 
-1. Add the Reanimated Babel plugin as the last plugin in your Babel config.
+1. Add the Worklets Babel plugin as the last plugin in your Babel config (not needed on Expo, `babel-preset-expo` adds it).
 2. Wrap your app root with `GestureHandlerRootView`, `SafeAreaProvider`, and optionally `ToastProvider`.
 3. Rebuild the app after installing Reanimated/Worklets.
 
@@ -68,7 +68,7 @@ Example setup:
 ```tsx
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { ToastProvider } from 'react-native-layer';
+import { ToastProvider } from '@whoisrijan/react-native-layer';
 
 export default function Root() {
   return (
@@ -86,13 +86,15 @@ export default function Root() {
 ```js
 module.exports = {
   presets: ['module:@react-native/babel-preset'],
-  plugins: ['react-native-reanimated/plugin'],
+  plugins: ['react-native-worklets/plugin'],
 };
 ```
 
 After installing or enabling Reanimated, rebuild the app.
 
 > `ToastProvider` is only required if you use toasts. All other components work without it.
+
+> **Stacking overlays on iOS:** iOS can't show two sibling modals at once. To open a `ConfirmModal` or `Alert` over a `BottomSheet`, render it inside the sheet's children.
 
 ---
 
@@ -101,7 +103,7 @@ After installing or enabling Reanimated, rebuild the app.
 ```tsx
 import { useState } from 'react';
 import { Text, Pressable, View } from 'react-native';
-import { BottomSheet } from 'react-native-layer';
+import { BottomSheet } from '@whoisrijan/react-native-layer';
 
 export default function App() {
   const [visible, setVisible] = useState(false);
@@ -128,7 +130,7 @@ That's it — you're up and running. Read on for every component.
 
 ### `BottomSheet`
 
-A draggable bottom sheet that auto-fits to its content height. Drag up to expand to full screen, drag down to dismiss. Automatically respects device safe areas (notch, home indicator).
+A draggable bottom sheet that auto-fits to its content height and follows it when the content changes. Drag up to expand to full screen, drag down to dismiss. Automatically respects device safe areas (notch, home indicator).
 
 #### Basic
 
@@ -169,6 +171,8 @@ A draggable bottom sheet that auto-fits to its content height. Drag up to expand
   <Text style={{ color: '#E0E7FF' }}>Dark themed sheet</Text>
 </BottomSheet>
 ```
+
+> The sheet sizes itself from its content, so children with `flex: 1` won't stretch to fill it. For long lists use a `ScrollView` with a `maxHeight`.
 
 #### Props
 
@@ -378,24 +382,25 @@ When `type` is set:
 
 #### Props
 
-| Prop                | Type                                              | Default                    | Description                                                         |
-| ------------------- | ------------------------------------------------- | -------------------------- | ------------------------------------------------------------------- |
-| `visible`           | `boolean`                                         | —                          | Whether the alert is visible. **Required.**                         |
-| `title`             | `string`                                          | —                          | Title text. **Required.**                                           |
-| `message`           | `string`                                          | —                          | Optional message body.                                              |
-| `buttonText`        | `string`                                          | `"OK"`                     | Button label.                                                       |
-| `onClose`           | `() => void`                                      | —                          | Called on button press, backdrop tap, or back button. **Required.** |
-| `onOpen`            | `() => void`                                      | —                          | Called after open animation finishes.                               |
-| `position`          | `"center" \| "bottom"`                            | `"center"`                 | Where to display the alert.                                         |
-| `type`              | `"success" \| "error" \| "warning" \| "question"` | —                          | Semantic type. Adds an icon and sets default button accent color.   |
-| `iconSize`          | `number`                                          | `24`                       | Size of the type icon in px. Only used when `type` is set.          |
-| `animationDuration` | `number`                                          | `200`                      | Animation duration in ms.                                           |
-| `backdropColor`     | `string`                                          | `"rgba(0,0,0,0.4)"`        | Backdrop overlay color.                                             |
-| `backgroundColor`   | `string`                                          | `"#fff"`                   | Card / sheet background color.                                      |
-| `titleColor`        | `string`                                          | `"#111827"`                | Title text color.                                                   |
-| `messageColor`      | `string`                                          | `"#6B7280"`                | Message text color.                                                 |
-| `buttonColor`       | `string`                                          | type accent or `"#111827"` | Button background color. Auto-set by `type` if not provided.        |
-| `buttonTextColor`   | `string`                                          | `"#fff"`                   | Button text color.                                                  |
+| Prop                   | Type                                              | Default                    | Description                                                         |
+| ---------------------- | ------------------------------------------------- | -------------------------- | ------------------------------------------------------------------- |
+| `visible`              | `boolean`                                         | —                          | Whether the alert is visible. **Required.**                         |
+| `title`                | `string`                                          | —                          | Title text. **Required.**                                           |
+| `message`              | `string`                                          | —                          | Optional message body.                                              |
+| `buttonText`           | `string`                                          | `"OK"`                     | Button label.                                                       |
+| `onClose`              | `() => void`                                      | —                          | Called on button press, backdrop tap, or back button. **Required.** |
+| `onOpen`               | `() => void`                                      | —                          | Called after open animation finishes.                               |
+| `position`             | `"center" \| "bottom"`                            | `"center"`                 | Where to display the alert.                                         |
+| `disableBackdropClose` | `boolean`                                         | `false`                    | Prevent closing by tapping backdrop.                                |
+| `type`                 | `"success" \| "error" \| "warning" \| "question"` | —                          | Semantic type. Adds an icon and sets default button accent color.   |
+| `iconSize`             | `number`                                          | `24`                       | Size of the type icon in px. Only used when `type` is set.          |
+| `animationDuration`    | `number`                                          | `200`                      | Animation duration in ms.                                           |
+| `backdropColor`        | `string`                                          | `"rgba(0,0,0,0.4)"`        | Backdrop overlay color.                                             |
+| `backgroundColor`      | `string`                                          | `"#fff"`                   | Card / sheet background color.                                      |
+| `titleColor`           | `string`                                          | `"#111827"`                | Title text color.                                                   |
+| `messageColor`         | `string`                                          | `"#6B7280"`                | Message text color.                                                 |
+| `buttonColor`          | `string`                                          | type accent or `"#111827"` | Button background color. Auto-set by `type` if not provided.        |
+| `buttonTextColor`      | `string`                                          | `"#fff"`                   | Button text color.                                                  |
 
 **Type → Accent Color Map:**
 
@@ -410,15 +415,15 @@ When `type` is set:
 
 ### `Toast` (via `ToastProvider` + `useToast`)
 
-A message toast that renders on the **very top of everything** in the app — no modal or overlay can cover it. Supports multiple positions, auto-dismiss with configurable timeout, and text truncation with ellipsis.
+A message toast that renders on the **very top of everything** in the app, including an open `BottomSheet`, `Alert`, `ConfirmModal` or `Layer`. Supports multiple positions, auto-dismiss with configurable timeout, and text truncation with ellipsis. Same custom UI on iOS and Android.
 
-On Android, `showToast()` uses the native `ToastAndroid` API for lower overhead. That means `backgroundColor` and `textColor` styling only apply to the custom iOS/web toast renderer.
+Pass `native: true` to use `ToastAndroid` on Android instead. Note that Android 11+ ignores `position` for native toasts, and `backgroundColor` / `textColor` are not applied.
 
 #### 1. Wrap with `ToastProvider`
 
 ```tsx
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { ToastProvider } from 'react-native-layer';
+import { ToastProvider } from '@whoisrijan/react-native-layer';
 
 function Root() {
   return (
@@ -434,7 +439,7 @@ function Root() {
 #### 2. Show Toasts from Anywhere
 
 ```tsx
-import { useToast } from 'react-native-layer';
+import { useToast } from '@whoisrijan/react-native-layer';
 
 function MyScreen() {
   const { showToast } = useToast();
@@ -486,15 +491,16 @@ showToast({ message: 'Bottom!', position: 'bottom' }); // default
 | `duration`        | `number`                        | `3000`      | How long to show the toast in ms.                                            |
 | `backgroundColor` | `string`                        | `"#111827"` | Toast pill background color.                                                 |
 | `textColor`       | `string`                        | `"#fff"`    | Toast text color.                                                            |
+| `native`          | `boolean`                       | `false`     | Use native `ToastAndroid` on Android. Ignores `position` and colors.         |
 
 ---
 
 ### `Layer`
 
-A low-level slide-up overlay primitive. Use this to build your own custom overlays — it handles the modal, backdrop, slide animation, and back button for you.
+A low-level slide-up overlay primitive. Use this to build your own custom overlays — it handles the modal, backdrop, slide animation, and back button for you. Gesture Handler gestures work inside it without an extra `GestureHandlerRootView`.
 
 ```tsx
-import { Layer } from 'react-native-layer';
+import { Layer } from '@whoisrijan/react-native-layer';
 
 <Layer visible={visible} onClose={() => setVisible(false)}>
   <View style={{ flex: 1, backgroundColor: '#fff' }}>
@@ -526,7 +532,7 @@ import { Layer } from 'react-native-layer';
 Returns the device safe-area insets. A thin wrapper around `useSafeAreaInsets` from `react-native-safe-area-context`.
 
 ```tsx
-import { useInsets } from 'react-native-layer';
+import { useInsets } from '@whoisrijan/react-native-layer';
 
 function MyComponent() {
   const insets = useInsets();
@@ -541,7 +547,7 @@ function MyComponent() {
 Returns `{ showToast }` to trigger toasts from anywhere. Must be used inside `<ToastProvider>`.
 
 ```tsx
-import { useToast } from 'react-native-layer';
+import { useToast } from '@whoisrijan/react-native-layer';
 
 const { showToast } = useToast();
 showToast({ message: 'Hello!' });
@@ -552,7 +558,7 @@ showToast({ message: 'Hello!' });
 Provides keyboard state and a safe dismiss function. The keyboard is only dismissed if it is actually open — avoids the flash-open-then-close glitch on some devices.
 
 ```tsx
-import { useKeyboard } from 'react-native-layer';
+import { useKeyboard } from '@whoisrijan/react-native-layer';
 
 function MyComponent() {
   const { isOpen, close } = useKeyboard();
@@ -566,14 +572,14 @@ function MyComponent() {
 Standalone utility functions are also exported for use outside of components:
 
 ```tsx
-import { isKeyboardOpen, closeKeyboard } from 'react-native-layer';
+import { isKeyboardOpen, closeKeyboard } from '@whoisrijan/react-native-layer';
 
 if (isKeyboardOpen()) {
   closeKeyboard();
 }
 ```
 
-> All overlay components (BottomSheet, Layer, Toast) use `closeKeyboard()` internally — the keyboard is dismissed only when it is already open.
+> All overlay components (BottomSheet, Layer, Alert, ConfirmModal, Toast) use `closeKeyboard()` internally — the keyboard is dismissed only when it is already open.
 
 ---
 
@@ -594,7 +600,7 @@ import type {
   LayerProps,
   DragDirection, // 'up' | 'down'
   Insets, // { top, bottom, left, right }
-} from 'react-native-layer';
+} from '@whoisrijan/react-native-layer';
 ```
 
 ---

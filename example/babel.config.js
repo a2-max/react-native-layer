@@ -16,6 +16,17 @@ module.exports = function (api) {
 
   return {
     ...config,
-    plugins: [...(config.plugins ?? []), 'react-native-reanimated/plugin'],
+    // expo 57 loads this without a filename, string patterns throw
+    overrides: config.overrides?.map((override) => {
+      const include = override.include;
+      return typeof include === 'string'
+        ? {
+            ...override,
+            include: (filename) =>
+              filename != null && filename.startsWith(include),
+          }
+        : override;
+    }),
+    plugins: [...(config.plugins ?? []), 'react-native-worklets/plugin'],
   };
 };

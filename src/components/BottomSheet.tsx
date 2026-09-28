@@ -28,6 +28,7 @@ import { bottomSheetStyles as styles, commonStyles } from '../core/styles';
 import type { BottomSheetProps } from '../types/bottomSheet';
 import { SafeAreaInsetsProvider, useInsets } from '../hooks/useInsets';
 import { closeKeyboard } from '../hooks/useKeyboard';
+import { ToastOutlet } from './Toast';
 
 export const BottomSheet = (props: BottomSheetProps) => {
   const {
@@ -113,12 +114,17 @@ const BottomSheetInner = ({
   const dismissThresholdValue = useSharedValue(dismissThreshold);
 
   const enableUpwardDragValue = useSharedValue(enableUpwardDrag ? 1 : 0);
+  const isDragging = useSharedValue(false);
+  const isFullscreen = useSharedValue(false);
+  const openPending = useSharedValue(false);
 
-  const hasOpened = useRef(false);
+  const settledHeight = useRef(0);
+  const onOpenRef = useRef(onOpen);
+  onOpenRef.current = onOpen;
 
   const emitOpen = useCallback(() => {
-    onOpen?.();
-  }, [onOpen]);
+    onOpenRef.current?.();
+  }, []);
 
   const emitDismiss = useCallback(() => {
     onClose();
@@ -160,7 +166,8 @@ const BottomSheetInner = ({
 
   useEffect(() => {
     if (!visible) {
-      hasOpened.current = false;
+      settledHeight.current = 0;
+      openPending.value = false;
 
       animatedHeight.value = withTiming(
         0,
@@ -175,21 +182,31 @@ const BottomSheetInner = ({
   }, [visible, animationDuration, onModalHide]);
 
   useEffect(() => {
-    if (visible && contentHeight > 0 && maxHeight > 0 && !hasOpened.current) {
-      hasOpened.current = true;
+    if (!visible || contentHeight <= 0 || maxHeight <= 0) return;
 
-      const target = Math.min(contentHeight, maxHeight);
+    const target = Math.min(contentHeight, maxHeight);
+    if (target === settledHeight.current) return;
 
-      animatedHeight.value = withTiming(
-        target,
-        { duration: animationDuration },
-        (finished) => {
-          if (finished) {
-            scheduleOnRN(emitOpen);
-          }
-        }
-      );
+    const opening = settledHeight.current === 0;
+    settledHeight.current = target;
+
+    // content resized while open: follow it unless the user is holding the sheet
+    if (!opening && (isDragging.value || isFullscreen.value)) return;
+    if (opening) {
+      isFullscreen.value = false;
+      openPending.value = true;
     }
+
+    animatedHeight.value = withTiming(
+      target,
+      { duration: animationDuration },
+      (finished) => {
+        if (finished && openPending.value) {
+          openPending.value = false;
+          scheduleOnRN(emitOpen);
+        }
+      }
+    );
   }, [visible, contentHeight, maxHeight, animationDuration, emitOpen]);
 
   const handleContentLayout = useCallback(
@@ -210,9 +227,10 @@ const BottomSheetInner = ({
   const panGesture = Gesture.Pan()
     .enabled(draggable)
     .minDistance(4)
-    .onBegin(() => {
-      dragStartHeight.value = animatedHeight.value;
+    .onStart(() => {
+      isDragging.value = true;
       cancelAnimation(animatedHeight);
+      dragStartHeight.value = animatedHeight.value;
     })
     .onUpdate((gesture) => {
       const full = maxHeightValue.value;
@@ -243,6 +261,7 @@ const BottomSheetInner = ({
       scheduleOnRN(emitDrag, direction, full > 0 ? nextHeight / full : 0);
     })
     .onEnd((gesture) => {
+      isDragging.value = false;
       const full = maxHeightValue.value;
       const content = contentHeightValue.value;
       const current = animatedHeight.value;
@@ -263,6 +282,7 @@ const BottomSheetInner = ({
 
       // Fast swipe up - fullscreen (only when upward drag is enabled)
       if (velocityY < -800 && enableUpwardDragValue.value !== 0) {
+        isFullscreen.value = true;
         animatedHeight.value = withTiming(full, {}, () =>
           scheduleOnRN(emitFullscreen)
         );
@@ -274,11 +294,13 @@ const BottomSheetInner = ({
 
       if (enableUpwardDragValue.value !== 0 && current > midpoint) {
         // Snap to fullscreen when upward drag is enabled and past midpoint
+        isFullscreen.value = true;
         animatedHeight.value = withTiming(full, {}, () =>
           scheduleOnRN(emitFullscreen)
         );
       } else {
         // Always snap back to content height otherwise
+        isFullscreen.value = false;
         animatedHeight.value = withTiming(content, {}, () =>
           scheduleOnRN(emitContentSettled)
         );
@@ -358,35 +380,31 @@ const BottomSheetInner = ({
               sheetAnimatedStyle,
             ]}
           >
-            {/* GestureDetector is scoped only to the handle/top-bar area so it
-              never conflicts with ScrollView or other scrollable content below */}
-            <GestureDetector gesture={panGesture}>
-              <View style={[styles.handleContainer, handleContainerStyle]}>
-                {showHandle && (
-                  <View
-                    style={[
-                      styles.handle,
-                      { backgroundColor: handleColor },
-                      handleStyle,
-                    ]}
-                  />
-                )}
-              </View>
-            </GestureDetector>
+            <View style={styles.body} onLayout={handleContentLayout}>
+              {/* GestureDetector is scoped only to the handle/top-bar area so it
+                never conflicts with ScrollView or other scrollable content below */}
+              <GestureDetector gesture={panGesture}>
+                <View style={[styles.handleContainer, handleContainerStyle]}>
+                  {showHandle && (
+                    <View
+                      style={[
+                        styles.handle,
+                        { backgroundColor: handleColor },
+                        handleStyle,
+                      ]}
+                    />
+                  )}
+                </View>
+              </GestureDetector>
 
-            <View style={[styles.content, contentContainerStyle]}>
-              {children}
+              <View style={[styles.content, contentContainerStyle]}>
+                {children}
+              </View>
             </View>
           </Animated.View>
         </View>
 
-        <View
-          style={styles.measurer}
-          onLayout={handleContentLayout}
-          pointerEvents="none"
-        >
-          {children}
-        </View>
+        <ToastOutlet active={visible} />
       </View>
     </GestureHandlerRootView>
   );

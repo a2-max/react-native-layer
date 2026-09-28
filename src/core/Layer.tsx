@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { BackHandler, Modal, StyleSheet, View } from 'react-native';
+import { BackHandler, Modal, StyleSheet } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, {
   Extrapolation,
   interpolate,
@@ -14,6 +15,7 @@ import { Animation, Colors, SCREEN_HEIGHT } from './constants';
 import { layerStyles } from './styles';
 import type { LayerProps } from '../types/layer';
 import { closeKeyboard } from '../hooks/useKeyboard';
+import { ToastOutlet } from '../components/Toast';
 
 export const Layer = ({
   visible,
@@ -96,7 +98,7 @@ export const Layer = ({
       onRequestClose={onClose}
       statusBarTranslucent
     >
-      <View style={StyleSheet.absoluteFill}>
+      <GestureHandlerRootView style={StyleSheet.absoluteFill}>
         <Backdrop
           opacity={opacity}
           onPress={handleBackdropPress}
@@ -107,7 +109,9 @@ export const Layer = ({
         <Animated.View style={[layerStyles.container, containerStyle]}>
           {children}
         </Animated.View>
-      </View>
+
+        <ToastOutlet active={visible} />
+      </GestureHandlerRootView>
     </Modal>
   );
 };
