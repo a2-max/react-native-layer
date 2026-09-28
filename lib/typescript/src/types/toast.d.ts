@@ -12,6 +12,8 @@ export interface ToastConfig {
     backgroundColor?: string;
     /** Text color of the toast message. @default Colors.white */
     textColor?: string;
+    /** Use native ToastAndroid on Android. Ignores position and colors. @default false */
+    native?: boolean;
 }
 /** Context value returned by `useToast()`. */
 export interface ToastContextValue {

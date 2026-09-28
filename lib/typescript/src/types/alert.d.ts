@@ -18,6 +18,8 @@ export interface AlertProps {
     onOpen?: () => void;
     /** Position of the alert. @default "center" */
     position?: AlertPosition;
+    /** If true, tapping the backdrop won't close the alert. @default false */
+    disableBackdropClose?: boolean;
     /** Semantic alert type – adds an icon and sets default accent colors. */
     type?: AlertType;
     /** Size of the type icon in px. @default 24 */
