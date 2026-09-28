@@ -26,6 +26,12 @@ export declare const bottomSheetStyles: Readonly<{
     sheet: {
         overflow: "hidden";
     };
+    body: {
+        position: "absolute";
+        top: number;
+        left: number;
+        right: number;
+    };
     handleContainer: {
         alignItems: "center";
         paddingVertical: 10;
@@ -36,15 +42,6 @@ export declare const bottomSheetStyles: Readonly<{
         borderRadius: 2.5;
     };
     content: {
-        flex: number;
-        paddingHorizontal: 16;
-    };
-    measurer: {
-        position: "absolute";
-        left: number;
-        right: number;
-        bottom: number;
-        opacity: number;
         paddingHorizontal: 16;
     };
 }>;
