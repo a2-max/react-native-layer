@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { Colors, Font, Layout, Opacity, SCREEN_HEIGHT } from './constants';
+import { Colors, Font, Layout, Opacity } from './constants';
 
 // ─── Shared / Common ─────────────────────────────────────────────────────────
 
@@ -33,6 +33,12 @@ export const bottomSheetStyles = StyleSheet.create({
   sheet: {
     overflow: 'hidden',
   },
+  body: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+  },
   handleContainer: {
     alignItems: 'center',
     paddingVertical: Layout.handlePaddingVertical,
@@ -43,15 +49,6 @@ export const bottomSheetStyles = StyleSheet.create({
     borderRadius: Layout.radiusHandle,
   },
   content: {
-    flex: 1,
-    paddingHorizontal: Layout.paddingHorizontal,
-  },
-  measurer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: -SCREEN_HEIGHT * 2,
-    opacity: 0,
     paddingHorizontal: Layout.paddingHorizontal,
   },
 });

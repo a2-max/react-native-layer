@@ -20,6 +20,8 @@ import { scheduleOnRN } from 'react-native-worklets';
 import { Animation, Colors } from '../core/constants';
 import { commonStyles, confirmModalStyles as styles } from '../core/styles';
 import type { ConfirmModalProps } from '../types/confirmModal';
+import { closeKeyboard } from '../hooks/useKeyboard';
+import { ToastOutlet } from './Toast';
 
 export const ConfirmModal = ({
   visible,
@@ -74,6 +76,7 @@ export const ConfirmModal = ({
 
   useEffect(() => {
     if (visible) {
+      closeKeyboard();
       setModalVisible(true);
 
       opacity.value = 0;
@@ -257,6 +260,7 @@ export const ConfirmModal = ({
           </Animated.View>
         </View>
       </KeyboardAvoidingView>
+      <ToastOutlet />
     </Modal>
   );
 };

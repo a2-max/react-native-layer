@@ -18,6 +18,8 @@ import { Animation, Colors } from '../core/constants';
 import { alertStyles as styles, commonStyles } from '../core/styles';
 import type { AlertProps, AlertType } from '../types/alert';
 import { SafeAreaInsetsProvider, useInsets } from '../hooks/useInsets';
+import { closeKeyboard } from '../hooks/useKeyboard';
+import { ToastOutlet } from './Toast';
 import {
   SuccessIcon,
   ErrorIcon,
@@ -60,7 +62,10 @@ export const Alert = (props: AlertProps) => {
   const [modalVisible, setModalVisible] = useState(false);
 
   useEffect(() => {
-    if (visible) setModalVisible(true);
+    if (visible) {
+      closeKeyboard();
+      setModalVisible(true);
+    }
   }, [visible]);
 
   const handleHide = useCallback(() => {
@@ -81,6 +86,7 @@ export const Alert = (props: AlertProps) => {
           animationDuration={animationDuration}
           onModalHide={handleHide}
         />
+        <ToastOutlet />
       </SafeAreaInsetsProvider>
     </Modal>
   );
@@ -94,6 +100,7 @@ const AlertInner = ({
   onClose,
   onOpen,
   position = 'center',
+  disableBackdropClose = false,
   type,
   iconSize = 24,
   animationDuration = Animation.durationFast,
@@ -118,7 +125,11 @@ const AlertInner = ({
 
   const handleOpen = useCallback(() => {
     onOpen?.();
-  }, []);
+  }, [onOpen]);
+
+  const handleBackdropPress = useCallback(() => {
+    if (!disableBackdropClose) onClose();
+  }, [disableBackdropClose, onClose]);
 
   useEffect(() => {
     if (visible) {
@@ -225,7 +236,10 @@ const AlertInner = ({
             backdropAnimatedStyle,
           ]}
         >
-          <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={handleBackdropPress}
+          />
         </Animated.View>
 
         <Animated.View
@@ -280,7 +294,10 @@ const AlertInner = ({
           backdropAnimatedStyle,
         ]}
       >
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={handleBackdropPress}
+        />
       </Animated.View>
 
       <View style={commonStyles.absoluteAnchorBottom} pointerEvents="box-none">

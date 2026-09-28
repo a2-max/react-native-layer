@@ -10,6 +10,7 @@ import {
 } from 'react';
 import { Platform, Text, ToastAndroid, View } from 'react-native';
 import Animated, {
+  type SharedValue,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
@@ -29,6 +30,17 @@ const ToastContext = createContext<ToastContextValue>({
   showToast: () => {},
 });
 
+interface OutletContextValue {
+  toast: ToastConfig | null;
+  opacity: SharedValue<number>;
+  activeOutlet: number;
+  register: (id: number) => () => void;
+}
+
+const OutletContext = createContext<OutletContextValue | null>(null);
+
+let nextOutletId = 1;
+
 /**
  * Hook to show toast messages from anywhere in the app.
  * Must be used inside a `<ToastProvider>`.
@@ -40,11 +52,10 @@ export const useToast = (): ToastContextValue => useContext(ToastContext);
  * Toasts render above everything — including modals.
  */
 export const ToastProvider = ({ children }: PropsWithChildren) => {
-  const insets = useSafeAreaInsets();
   const [toast, setToast] = useState<ToastConfig | null>(null);
+  const [outlets, setOutlets] = useState<number[]>([]);
   const opacity = useSharedValue(0);
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const usesNativeAndroidToast = Platform.OS === 'android';
 
   const hide = useCallback(() => {
     opacity.value = withTiming(0, { duration: ANIM_DURATION }, (finished) => {
@@ -58,7 +69,7 @@ export const ToastProvider = ({ children }: PropsWithChildren) => {
     (config: ToastConfig) => {
       closeKeyboard();
 
-      if (usesNativeAndroidToast) {
+      if (Platform.OS === 'android' && config.native) {
         const duration =
           (config.duration ?? DEFAULT_DURATION) >= DEFAULT_DURATION
             ? ToastAndroid.LONG
@@ -85,7 +96,7 @@ export const ToastProvider = ({ children }: PropsWithChildren) => {
         hide();
       }, config.duration ?? DEFAULT_DURATION);
     },
-    [hide, opacity, usesNativeAndroidToast]
+    [hide, opacity]
   );
 
   useEffect(() => {
@@ -94,11 +105,55 @@ export const ToastProvider = ({ children }: PropsWithChildren) => {
     };
   }, []);
 
-  const contextValue = useMemo(() => ({ showToast }), [showToast]);
+  const register = useCallback((id: number) => {
+    setOutlets((list) => [...list, id]);
+    return () => setOutlets((list) => list.filter((item) => item !== id));
+  }, []);
 
-  const position = toast?.position ?? 'bottom';
-  const bg = toast?.backgroundColor ?? Colors.gray900;
-  const textColor = toast?.textColor ?? Colors.white;
+  const activeOutlet = outlets[outlets.length - 1] ?? 0;
+
+  const contextValue = useMemo(() => ({ showToast }), [showToast]);
+  const outletValue = useMemo(
+    () => ({ toast, opacity, activeOutlet, register }),
+    [toast, opacity, activeOutlet, register]
+  );
+
+  return (
+    <ToastContext.Provider value={contextValue}>
+      <OutletContext.Provider value={outletValue}>
+        {children}
+        {activeOutlet === 0 && toast ? (
+          <ToastView toast={toast} opacity={opacity} />
+        ) : null}
+      </OutletContext.Provider>
+    </ToastContext.Provider>
+  );
+};
+
+/** Renders the toast inside a modal layer while that layer is on top. */
+export const ToastOutlet = () => {
+  const outlet = useContext(OutletContext);
+  const [id] = useState(() => nextOutletId++);
+  const register = outlet?.register;
+
+  useEffect(() => register?.(id), [register, id]);
+
+  if (!outlet?.toast || outlet.activeOutlet !== id) return null;
+
+  return <ToastView toast={outlet.toast} opacity={outlet.opacity} />;
+};
+
+const ToastView = ({
+  toast,
+  opacity,
+}: {
+  toast: ToastConfig;
+  opacity: SharedValue<number>;
+}) => {
+  const insets = useSafeAreaInsets();
+  const position = toast.position ?? 'bottom';
+  const bg = toast.backgroundColor ?? Colors.gray900;
+  const textColor = toast.textColor ?? Colors.white;
 
   const toastAnimatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
@@ -115,24 +170,18 @@ export const ToastProvider = ({ children }: PropsWithChildren) => {
   }
 
   return (
-    <ToastContext.Provider value={contextValue}>
-      {children}
-
-      {!usesNativeAndroidToast && toast ? (
-        <View style={[styles.container, positionStyle]} pointerEvents="none">
-          <Animated.View
-            style={[styles.pill, { backgroundColor: bg }, toastAnimatedStyle]}
-          >
-            <Text
-              style={[styles.text, { color: textColor }]}
-              numberOfLines={TOAST_MAX_LINES}
-              ellipsizeMode="tail"
-            >
-              {toast.message}
-            </Text>
-          </Animated.View>
-        </View>
-      ) : null}
-    </ToastContext.Provider>
+    <View style={[styles.container, positionStyle]} pointerEvents="none">
+      <Animated.View
+        style={[styles.pill, { backgroundColor: bg }, toastAnimatedStyle]}
+      >
+        <Text
+          style={[styles.text, { color: textColor }]}
+          numberOfLines={TOAST_MAX_LINES}
+          ellipsizeMode="tail"
+        >
+          {toast.message}
+        </Text>
+      </Animated.View>
+    </View>
   );
 };
