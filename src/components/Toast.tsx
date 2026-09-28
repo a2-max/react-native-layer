@@ -68,8 +68,12 @@ export const ToastProvider = ({ children }: PropsWithChildren) => {
   const showToast = useCallback(
     (config: ToastConfig) => {
       closeKeyboard();
+      if (timerRef.current) clearTimeout(timerRef.current);
 
       if (Platform.OS === 'android' && config.native) {
+        opacity.value = 0;
+        setToast(null);
+
         const duration =
           (config.duration ?? DEFAULT_DURATION) >= DEFAULT_DURATION
             ? ToastAndroid.LONG
@@ -84,8 +88,6 @@ export const ToastProvider = ({ children }: PropsWithChildren) => {
         ToastAndroid.showWithGravity(config.message, duration, gravity);
         return;
       }
-
-      if (timerRef.current) clearTimeout(timerRef.current);
 
       opacity.value = 0;
       setToast(config);
@@ -130,13 +132,16 @@ export const ToastProvider = ({ children }: PropsWithChildren) => {
   );
 };
 
-/** Renders the toast inside a modal layer while that layer is on top. */
-export const ToastOutlet = () => {
+/** Renders the toast inside a modal layer while that layer is open and on top. */
+export const ToastOutlet = ({ active }: { active: boolean }) => {
   const outlet = useContext(OutletContext);
   const [id] = useState(() => nextOutletId++);
   const register = outlet?.register;
 
-  useEffect(() => register?.(id), [register, id]);
+  useEffect(() => {
+    if (active) return register?.(id);
+    return undefined;
+  }, [active, register, id]);
 
   if (!outlet?.toast || outlet.activeOutlet !== id) return null;
 

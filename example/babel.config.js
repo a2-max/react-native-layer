@@ -27,6 +27,6 @@ module.exports = function (api) {
           }
         : override;
     }),
-    plugins: [...(config.plugins ?? []), 'react-native-reanimated/plugin'],
+    plugins: [...(config.plugins ?? []), 'react-native-worklets/plugin'],
   };
 };

@@ -116,6 +116,7 @@ const BottomSheetInner = ({
   const enableUpwardDragValue = useSharedValue(enableUpwardDrag ? 1 : 0);
   const isDragging = useSharedValue(false);
   const isFullscreen = useSharedValue(false);
+  const openPending = useSharedValue(false);
 
   const settledHeight = useRef(0);
   const onOpenRef = useRef(onOpen);
@@ -166,6 +167,7 @@ const BottomSheetInner = ({
   useEffect(() => {
     if (!visible) {
       settledHeight.current = 0;
+      openPending.value = false;
 
       animatedHeight.value = withTiming(
         0,
@@ -190,13 +192,17 @@ const BottomSheetInner = ({
 
     // content resized while open: follow it unless the user is holding the sheet
     if (!opening && (isDragging.value || isFullscreen.value)) return;
-    if (opening) isFullscreen.value = false;
+    if (opening) {
+      isFullscreen.value = false;
+      openPending.value = true;
+    }
 
     animatedHeight.value = withTiming(
       target,
       { duration: animationDuration },
       (finished) => {
-        if (finished && opening) {
+        if (finished && openPending.value) {
+          openPending.value = false;
           scheduleOnRN(emitOpen);
         }
       }
@@ -398,7 +404,7 @@ const BottomSheetInner = ({
           </Animated.View>
         </View>
 
-        <ToastOutlet />
+        <ToastOutlet active={visible} />
       </View>
     </GestureHandlerRootView>
   );

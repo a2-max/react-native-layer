@@ -86,7 +86,7 @@ export const Alert = (props: AlertProps) => {
           animationDuration={animationDuration}
           onModalHide={handleHide}
         />
-        <ToastOutlet />
+        <ToastOutlet active={visible} />
       </SafeAreaInsetsProvider>
     </Modal>
   );

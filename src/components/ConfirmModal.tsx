@@ -260,7 +260,7 @@ export const ConfirmModal = ({
           </Animated.View>
         </View>
       </KeyboardAvoidingView>
-      <ToastOutlet />
+      <ToastOutlet active={visible} />
     </Modal>
   );
 };

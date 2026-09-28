@@ -110,7 +110,7 @@ export const Layer = ({
           {children}
         </Animated.View>
 
-        <ToastOutlet />
+        <ToastOutlet active={visible} />
       </GestureHandlerRootView>
     </Modal>
   );
