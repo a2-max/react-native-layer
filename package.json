@@ -54,7 +54,7 @@
   "bugs": {
     "url": "https://github.com/a2-max/react-native-layer/issues"
   },
-  "homepage": "https://github.com/a2-max/react-native-layer#readme",
+  "homepage": "https://rnlayer.rijan.info.np/",
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
   },
